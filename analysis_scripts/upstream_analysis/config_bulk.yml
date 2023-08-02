@@ -1,0 +1,7 @@
+adaptor_option: '--illumina'
+max_multiMapping: 20
+num_cores: 4
+Unmapped_option: 'Fastx' 
+quantMode: '-'
+alignIntronMax: 1000
+EndsType: "Local"
