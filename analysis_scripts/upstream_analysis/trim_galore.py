@@ -5,7 +5,7 @@ import logging
 import re
 
 '''Usage:trim_galore.py -f <path containing Raw files > -c <config file with software information> -a <single or pair end SE/PE>'''
-#python trim_galore.py -f fastq.list -a 'SE/PE'
+#python trim_galore.py -f fastq.list -a 'SE/PE' -c config_bulk.yml
 #trimm and output fastqc checking
 
 def msg():
