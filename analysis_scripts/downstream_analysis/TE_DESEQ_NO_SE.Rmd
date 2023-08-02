@@ -1,0 +1,726 @@
+---
+title: "Translation Efficiency (TE) for No Selenium Supplementation in cell lines"
+output: html_document
+date: '`r format(Sys.Date(), "%Y-%B-%d")`'
+---
+
+We follow the analysis described in https://currentprotocols.onlinelibrary.wiley.com/doi/full/10.1002/cpmb.108 where they introduce an interaction term into the statistical model of DESeq2 to identify differential translation efficiency genes. When combining RNA-seq and Ribo-seq from two conditions, the interaction term can be used to model condition (untreated/treated) and sequencing methodology (Ribo-seq/RNA-seq). This allows the identification of significant differences between conditions that are discordant between sequencing methodologies. They design a generalized linear model with three components: the condition (c), the sequencing type (s), and an interaction term containing both (c:s). The result is a ΔTE fold change and an associated false discovery rate (FDR) for significant changes of this fold change, which quantify the extent of translational regulation between conditions.
+
+```{r , echo=F, message=F, warning=F}
+#Load libraraies
+library(tximport)
+library(openxlsx)
+library(dplyr)
+library(GenomicFeatures)
+library(DESeq2)
+library(stringr)
+library(pheatmap)
+library(plyr)
+library(AnnotationDbi)
+library(apeglm)
+library(ggplot2)
+library(EnhancedVolcano)
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(fgsea)
+library(msigdbr)
+library(GGally)
+library(tidyverse)
+library(ggplotify)
+library(ggpubr)
+library(GGally)
+```
+
+```{r, echo=F, message=F, warning=F}
+#Create annotation database.
+mane_txdb <- makeTxDbFromGFF("/local/storage/maa7095/references/human/MANE/MANE.GRCh38.v1.1/MANE.GRCh38.v1.1.refseq_genomic.gff.gz")
+mane_k <- keys(mane_txdb, keytype = "TXNAME")
+tx2gene <- AnnotationDbi::select(mane_txdb, mane_k, "GENEID", "TXNAME")
+```
+
+
+```{r, echo=F, message=F, warning=F}
+#Load the metadata and get the file name from there.
+TE_metadata <- read.xlsx("/SSD/maa7095/RIBOseq/downstream_analysis/DESEQ2/TE_metadata_updated.xlsx")
+ribo_metadata <- TE_metadata %>% filter(Data_type=="RIBO_seq")
+rna_metadata <- TE_metadata %>% filter(Data_type=="RNA_seq")
+```
+
+
+
+```{r, echo=F, message=F, warning=F}
+#Load kallisto outputs for RIBOseq data.
+#Point to bulkrnaseq transcripts counts.
+ribo_files <- file.path("/SSD/maa7095/RIBOseq/Process/Raw_data/RAW_FASTQ_RIBO_DATA/trimmed_out/non_coding_mapping/kallisto_output_kmer21", ribo_metadata$File_name, "abundance.tsv")
+names(ribo_files) <- paste0(ribo_metadata$Sample_name)
+txi.kallisto.RIBO <- tximport(ribo_files, type = "kallisto", tx2gene = tx2gene, ignoreAfterBar = TRUE)
+RIBO_counts <- txi.kallisto.RIBO$counts
+write.csv(RIBO_counts, "/SSD/maa7095/RIBOseq/downstream_analysis/DESEQ2/RIBO_RAW_counts.csv")
+
+RIBO_norm <- txi.kallisto.RIBO$abundance
+write.csv(RIBO_norm, "/SSD/maa7095/RIBOseq/downstream_analysis/DESEQ2/RIBO_NORM_tpm_counts.csv")
+
+```
+
+```{r, echo=F, message=F, warning=F}
+#Load kallisto outputs for bulkRNAseq.
+rna_files <- file.path("/SSD/maa7095/RIBOseq/Process/Raw_data/RAW_FASTQ_RNA_DATA/trimmed_out/non_coding_mapping/kallisto_output_kmer21", rna_metadata$File_name, "abundance.tsv")
+names(rna_files) <- paste0(rna_metadata$Sample_name)
+txi.kallisto.RNA <- tximport(rna_files, type = "kallisto", tx2gene = tx2gene, ignoreAfterBar = TRUE)
+RNA_counts <- txi.kallisto.RNA$counts
+write.csv(RNA_counts, "/SSD/maa7095/RIBOseq/downstream_analysis/DESEQ2/RNA_RAW_counts.csv")
+
+RNA_norm <- txi.kallisto.RNA$abundance
+write.csv(RNA_norm, "/SSD/maa7095/RIBOseq/downstream_analysis/DESEQ2/RNA_NORM_tpm_counts.csv")
+
+```
+
+```{r, echo=F, message=F, warning=F}
+TE_metadata$Data_type <- factor(TE_metadata$Data_type, levels = c("RNA_seq", "RIBO_seq"))
+TE_metadata$Condition <- factor(TE_metadata$Condition, levels = c("WT_NO_SE","WT_SE","KO_NO_SE", "KO_SE"))
+TE_metadata$Sample_type <- factor(TE_metadata$Sample_type, levels = c("wt_WT_NO_SE","wt_WT_SE", "ko1_KO_NO_SE", "ko1_KO_SE"))
+```
+
+
+```{r, echo=F, message=F, warning=F}
+#Bind matrices and check for rows in order.
+all(rownames(RIBO_counts)%in% rownames(RNA_counts))
+TE_counts <- cbind(RIBO_counts,RNA_counts)
+rownames(TE_metadata) <- TE_metadata$Sample_name
+all(rownames(TE_metadata) %in% colnames(TE_counts))
+```
+
+
+
+```{r,  message=F, echo=F, warning=F}
+#Start runnig DESEQ2.
+TE_ddsMat = DESeqDataSetFromMatrix(
+  countData=round(TE_counts),
+  colData=TE_metadata,
+  design=~ Sample_type+Data_type+Sample_type:Data_type)
+```
+
+```{r, echo=F, message=F}
+keep <- rowSums(counts(TE_ddsMat) >= 10) >= 2
+TE_ddsMat <- TE_ddsMat[keep,]
+TE_ddsMat <- DESeq(TE_ddsMat)
+TE_normalized_counts <- counts(TE_ddsMat,normalized=TRUE)
+TE_raw_counts <- counts(TE_ddsMat,normalized=F)
+# save raw counts and normalized counts
+write.csv(TE_normalized_counts, "/SSD/maa7095/RIBOseq/downstream_analysis/DESEQ2/TE_normalized_counts.csv")
+write.csv(TE_raw_counts, "/SSD/maa7095/RIBOseq/downstream_analysis/DESEQ2/TE_raw_counts.csv")
+
+```
+
+
+```{r, echo=F, message=F, warning=F}
+#Subset dataset just for NO SE suppl. #The analysis will be done for absence or presence of Selenium separately.
+subset_metadata <- TE_metadata %>% filter(Condition %in% c("WT_NO_SE","KO_NO_SE"))
+subset_metadata$Condition <- factor(subset_metadata$Condition, levels = c("WT_NO_SE","KO_NO_SE"))
+keep_NOSE_samples <- subset_metadata$Sample_name
+```
+
+
+```{r, echo=F, message=F, warning=F}
+#Subset main object.
+#Bind matrices and check for rows in order.
+NOSE_TE_mat <- TE_counts[,keep_NOSE_samples]
+all(rownames(subset_metadata) %in% colnames(NOSE_TE_mat))
+```
+
+
+```{r, echo=F, message=F, warning=F}
+#Start runnig DESEQ2.
+NOSE_TE_ddsMat = DESeqDataSetFromMatrix(
+  countData=round(NOSE_TE_mat),
+  colData=subset_metadata,
+  design=~ Condition+Data_type+Condition:Data_type)
+```
+
+```{r, echo=F, message=F, warning=F}
+keep <- rowSums(counts(NOSE_TE_ddsMat) >= 10) >= 2
+NOSE_TE_ddsMat <- NOSE_TE_ddsMat[keep,]
+NOSE_TE_ddsMat <- DESeq(NOSE_TE_ddsMat)
+NOSE_TE_normalized_counts <- counts(NOSE_TE_ddsMat,normalized=TRUE)
+
+write.csv(NOSE_TE_normalized_counts, "/SSD/maa7095/RIBOseq/downstream_analysis/DESEQ2/NOSE_TE_normalized_counts.csv")
+```
+
+## TE DE results.{.tabset}
+First comparison in which three components: the condition (c), the sequencing type (s), and an interaction term containing both (c:s) will be take into account. Condition2.SeqTypeRibo.seq means Changes in Ribo-seq levels in Condition2 vs Condition1 accounting for changes in RNA-seq levels in Condition2 vs Condition1.
+
+### PCA
+
+```{r, echo=F, message=F, warning=F}
+NOSE_TE_ddsMat_Coll <- rlog( NOSE_TE_ddsMat, blind=FALSE)
+NOSE_TE_ddsMat_Coll_mat <- assay(NOSE_TE_ddsMat_Coll)
+NOSE_TE_ddsMat_Coll_cor <- cor(NOSE_TE_ddsMat_Coll_mat)
+plotPCA(NOSE_TE_ddsMat_Coll, intgroup=c("Condition", "Data_type")) 
+```
+
+
+```{r, echo=F, message=F, warning=F}
+results_TE <- as.data.frame(results(NOSE_TE_ddsMat, contrast=list("ConditionKO_NO_SE.Data_typeRIBO_seq")))
+
+#arrange by padj values
+results_TE <- results_TE[order(results_TE[,6]),]
+  
+write.csv(results_TE, file="/SSD/maa7095/RIBOseq/downstream_analysis/DESEQ2/NOSE_KO_TE_results/NO_SE_DESeq2_TE.csv", row.names = T, quote = F)
+```
+
+
+### Volcano plot KO RIBO vs WT RIBO and KO RNA vs WT RNA. 
+```{r, echo=F, message=F, warning=F, warning=F}
+EnhancedVolcano(results_TE,lab = rownames(results_TE), x = 'log2FoldChange',y = 'pvalue', title = "TE analysis", pCutoff = 1e-05, FCcutoff = 1)
+```
+
+### Heatmap showing expression of DE genes padj < 0.01 LFC 1
+```{r, echo=F, message=F, warning=F}
+#draw heatmap with the most disregulated genes
+padj_genes <-na.omit(results_TE) %>% filter(padj<0.01 ,  log2FoldChange > 1 |  log2FoldChange < -1)
+padj_genes2 <- rownames(padj_genes)
+print(paste0(length(padj_genes2), " DE genes under padjusted < 0.01 and LFC 1 in TE data"))
+
+#Get the transformed values and filter genes
+subset_mat <- NOSE_TE_ddsMat_Coll_mat[padj_genes2,]
+
+#Now select the samples for each Condition
+subset_mat2 <- subset_mat
+```
+
+
+```{r, echo=F, message=F, warning=F}
+pheatmap(subset_mat2, scale="row", show_rownames = F, show_colnames = T, cluster_rows = T, legend = T, main =  "Heatmap of DE genes found in TE analysis", annotation_col = as.data.frame(colData(NOSE_TE_ddsMat))[, c("Data_type", "Condition")])
+```
+
+
+## {-}
+
+# BulkRNA seq data. PCA of the data.
+
+Second comparison KO_RNA vs WT_RNA.
+
+```{r, echo=F, message=F}
+#Create bulkRNAseq object.
+rna_samples <-subset_metadata[which(subset_metadata$Data_type == "RNA_seq"),]$Sample_name 
+RNA_ddsMat = DESeqDataSetFromMatrix(
+  countData=round(NOSE_TE_mat[,rna_samples]),
+  colData=subset_metadata[which(subset_metadata$Data_type == "RNA_seq"),],
+  design=~Condition)
+keep <- rowSums(counts(RNA_ddsMat) >= 10) >= 2
+RNA_ddsMat <- RNA_ddsMat[keep,]
+RNA_ddsMat <- DESeq(RNA_ddsMat)
+
+RNA_ddsMat_Coll <- rlog( RNA_ddsMat, blind=FALSE)
+RNA_ddsMat_mat <- assay(RNA_ddsMat_Coll)
+
+plotPCA(RNA_ddsMat_Coll, intgroup="Condition") + coord_fixed(ratio = 5) 
+```
+
+```{r, echo=F, message=F}
+#Run deseq2
+res_rna = results(RNA_ddsMat, name="Condition_KO_NO_SE_vs_WT_NO_SE") 
+res_rna = lfcShrink(RNA_ddsMat,res=res_rna, coef = "Condition_KO_NO_SE_vs_WT_NO_SE",  type="apeglm")
+control_samples <- c("RNA_seq_wt_no_se_1","RNA_seq_wt_no_se_2", "RNA_seq_wt_no_se_3")
+print(paste0("printing control samples ", control_samples))
+ko_samples <- c("RNA_seq_ko1_noSe_1","RNA_seq_ko1_noSe_2","RNA_seq_ko1_noSe_3")
+print(paste0("printing case samples ", ko_samples))
+res_rna$RNA_WT_mean_values <- rowMeans( counts(RNA_ddsMat,normalized=TRUE)[,control_samples])
+res_rna$RNA_KO1_mean_values <- rowMeans( counts(RNA_ddsMat,normalized=TRUE)[,ko_samples])
+res_rna <- res_rna[order(res_rna[,6]),]
+res_rna <- as.data.frame(res_rna)  
+write.csv(res_rna, file="/SSD/maa7095/RIBOseq/downstream_analysis/DESEQ2/NOSE_KO_TE_results/NO_SE_DESeq2_RNA.csv", row.names = T, quote = F)
+```
+
+## RNAseq KO1 vs WT DE results.{.tabset}
+
+### Volcano plot KO1 vs WT. 
+```{r, echo=F, message=F, warning=F}
+EnhancedVolcano(res_rna,lab = rownames(res_rna), x = 'log2FoldChange',y = 'pvalue', title = "No Selenium Supplementation KO1 vs WT RNA results",  pCutoff = 1e-05, FCcutoff = 1)
+```
+
+### Heatmap showing expression of DE genes padj < 0.01 LFC 1
+```{r, echo=F, message=F, warning=F}
+#draw heatmap with the most disregulated genes
+padj_genes <-na.omit(res_rna) %>% filter(padj<0.01 ,  log2FoldChange > 1 |  log2FoldChange < -1)
+
+padj_genes2 <- rownames(padj_genes)
+print(paste0(length(padj_genes2), " DE genes under p < 0.01 and LFC 1 in RNA_seq data"))
+subset_mat <- RNA_ddsMat_mat[padj_genes2,]
+needed_samples <- c(control_samples,ko_samples)
+subset_mat2 <- subset_mat[,needed_samples]
+pheatmap(subset_mat2, scale="row", show_rownames = F, show_colnames = T, cluster_rows = T, legend = T, main =  "Heatmap of DE genes found in bulkRNAseq analysis", annotation_col = as.data.frame(colData(RNA_ddsMat))[, c("Data_type", "Condition")])
+```
+
+## {-}
+
+
+Third comparison KO_RIBO vs WT_RIBO.
+
+
+```{r, echo=F, message=F}
+# RIBO seq data. PCA of the data.
+#Create RIBOseq object.
+RIBO_samples <-subset_metadata[which(subset_metadata$Data_type == "RIBO_seq"),]$Sample_name 
+RIBO_ddsMat = DESeqDataSetFromMatrix(
+  countData=round(NOSE_TE_mat[,RIBO_samples]),
+  colData=subset_metadata[which(subset_metadata$Data_type == "RIBO_seq"),],
+  design=~Condition)
+keep <- rowSums(counts(RIBO_ddsMat) >= 10) >= 2
+RIBO_ddsMat <- RIBO_ddsMat[keep,]
+RIBO_ddsMat <- DESeq(RIBO_ddsMat)
+
+RIBO_ddsMat_Coll <- rlog( RIBO_ddsMat, blind=FALSE)
+RIBO_ddsMat_mat <- assay(RIBO_ddsMat_Coll)
+
+plotPCA(RIBO_ddsMat_Coll, intgroup="Condition") + coord_fixed(ratio = 5) 
+```
+
+```{r, echo=F, message=F}
+#Run deseq2
+res_RIBO = results(RIBO_ddsMat, name="Condition_KO_NO_SE_vs_WT_NO_SE") 
+res_RIBO = lfcShrink(RIBO_ddsMat,res=res_RIBO, coef = "Condition_KO_NO_SE_vs_WT_NO_SE",  type="apeglm")
+control_samples <- c("RIBO_seq_wt_no_se_1","RIBO_seq_wt_no_se_2", "RIBO_seq_wt_no_se_3")
+print(paste0("printing control samples ", control_samples))
+ko_samples <- c("RIBO_seq_ko1_no_se_1","RIBO_seq_ko1_no_se_2","RIBO_seq_ko1_no_se_3")
+print(paste0("printing case samples ", ko_samples))
+res_RIBO$RIBO_WT_mean_values <- rowMeans( counts(RIBO_ddsMat,normalized=TRUE)[,control_samples])
+res_RIBO$RIBO_KO1_mean_values <- rowMeans( counts(RIBO_ddsMat,normalized=TRUE)[,ko_samples])
+res_RIBO <- res_RIBO[order(res_RIBO[,6]),]
+res_RIBO <- as.data.frame(res_RIBO)  
+write.csv(res_RIBO, file="/SSD/maa7095/RIBOseq/downstream_analysis/DESEQ2/NOSE_KO_TE_results/NO_SE_DESeq2_RIBO.csv", row.names = T, quote = F)
+```
+
+## RIBOseq KO1 vs WT DE results.{.tabset}
+
+### Volcano plot KO1 vs WT. 
+```{r, echo=F, message=F, warning=F}
+EnhancedVolcano(res_RIBO,lab = rownames(res_RIBO), x = 'log2FoldChange',y = 'pvalue', title = "No Sel Supplementation KO vs WT RIBO results",  pCutoff = 1e-05, FCcutoff = 1)
+```
+
+### Heatmap showing expression of DE genes padj < 0.01 LFC 1
+```{r, echo=F, message=F, warning=F}
+#draw heatmap with the most disregulated genes
+padj_genes <-na.omit(res_RIBO) %>% filter(padj<0.01 ,  log2FoldChange > 1 |  log2FoldChange < -1)
+
+padj_genes2 <- rownames(padj_genes)
+print(paste0(length(padj_genes2), " DE genes under p < 0.01 and LFC 1 in RIBO_seq data"))
+
+#Get the transformed values and filter genes
+subset_mat <- RIBO_ddsMat_mat[padj_genes2,]
+
+#Now select the samples for each Condition
+needed_samples <- c(control_samples,ko_samples)
+subset_mat2 <- subset_mat[,needed_samples]
+pheatmap(subset_mat2, scale="row", show_rownames = F, show_colnames = T, cluster_rows = T, legend = T, main =  "Heatmap of DE genes found in RIBOseq analysis", annotation_col =as.data.frame(colData(RIBO_ddsMat))[, c("Data_type", "Condition")])
+```
+
+## {-}
+
+Classification of genes into regulatory classes: 
+Forwarded: Genes driven by transcriptional regulation. These genes do not have a change in TE, and the change in RNA drives the change in RPFs. Hence, genes that have significant ΔRPF and ΔRNA but that do not have a significant ΔTE fall into this class.
+Exclusive: Genes regulated exclusively by translation. This means that the change in TE is driven by change in RPFs exclusively, and there is no change in mRNA counts. Hence, genes with significant ΔTE and ΔRPFs but no significant change in mRNA counts belong to this group.
+Intensified and buffered: Genes regulated both by transcriptional and translational regulation (significant ΔRNA, ΔRPFs, and ΔTE) include intensified and buffered genes. These genes are both DTGs and DTEGs.
+  Intensified: Genes for which the translational regulation acts with the transcriptional regulation change. These genes have the translational change in the same direction as their transcriptional change.
+  Buffered_1: Genes for which the translational regulation counteracts the transcriptional regulation change. In these genes, the transcriptional change (ΔRNA) and translational efficiency change (ΔTE) are in the opposite direction.
+  Buffered_2: genes wherein the transcriptional change is cancelled out by the change in TE to the point of no significant change in RPFs. Hence, genes with significant ΔTE and ΔRNA but that do not have a significant ΔRPF are also considered as translationally buffered.
+
+
+```{r, echo=F, message=F, warning=F}
+# Obtain classification of the different regulation groups.
+#change in RPFs (ΔRPF), change in mRNA counts (ΔRNA), and change in its TE (ΔTE) are combined to determine its regulation group, as shown in Table 2. It is recommended to use an FDR threshold of 0.01 or 
+# Forwarded: Genes driven by transcriptional regulation. These genes do not have a change in TE, and the change in RNA drives the change in RPFs. Hence, genes that have significant ΔRPF and ΔRNA but that do not have a significant ΔTE fall into this class.
+forwarded = rownames(results_TE)[which(results_TE$padj > 0.01 & res_RIBO$padj < 0.01 & res_rna$padj < 0.01)]
+ 
+print(paste0(length(forwarded), " genes classified as forwarded"))
+
+# Exclusive: Genes regulated exclusively by translation. This means that the change in TE is driven by change in RPFs exclusively, and there is no change in mRNA counts. Hence, genes with significant ΔTE and ΔRPFs but no significant change in mRNA counts belong to this group.
+exclusive = rownames(results_TE)[which(results_TE$padj < 0.01 & res_RIBO$padj < 0.01 & res_rna$padj > 0.01)]
+print(paste0(length(exclusive), " genes classified as exclusive"))
+
+# Intensified and buffered: Genes regulated both by transcriptional and translational regulation (significant ΔRNA, ΔRPFs, and ΔTE) include intensified and buffered genes. These genes are both DTGs and DTEGs.
+both= rownames(results_TE)[which(results_TE$padj < 0.01 & res_RIBO$padj < 0.01 & res_rna$padj < 0.01)]
+#Intensified: Genes for which the translational regulation acts with the transcriptional regulation change. These genes have the translational change in the same direction as their transcriptional change:
+intensified = both[which(results_TE[both, 2] * res_rna[both, 2] > 0)]
+print(paste0(length(intensified), " genes classified as intensified"))
+
+#Buffered: Genes for which the translational regulation counteracts the transcriptional regulation change. In these genes, the transcriptional change (ΔRNA) and translational efficiency change (ΔTE) are in the opposite direction:
+buffered_1 = both[which(results_TE[both, 2] * res_rna[both, 2] < 0)]
+print(paste0(length(buffered_1), " genes classified as buffered_1"))
+#There is also a special case of buffered genes wherein the transcriptional change is cancelled out by the change in TE to the point of no significant change in RPFs. Hence, genes with significant ΔTE and ΔRNA but that do not have a significant ΔRPF are also considered as translationally buffered.
+both_2 = rownames(results_TE)[which(results_TE$padj < 0.01 & res_RIBO$padj > 0.01 & res_rna$padj < 0.01)]
+buffered_2 = both_2[which(results_TE[both_2, 2] * res_rna[both_2, 2] < 0)]
+print(paste0(length(buffered_2), " genes classified as buffered_2"))
+
+```
+
+```{r, echo=F, message=F, warning=F}
+#function to get fold change values and plot them
+fold_change_plot <- function(list_gene, gene_class_name){
+keep_genes <- rownames(results_TE)[rownames(results_TE) %in% list_gene]
+selected_TE <- results_TE[keep_genes,]
+selected_TE$gene_id<- rownames(selected_TE)
+selected_TE<- selected_TE %>% select(gene_id,log2FoldChange)%>% rename("TE_LFC"=log2FoldChange) 
+
+keep_genes <- rownames(res_RIBO)[rownames(res_RIBO) %in% list_gene]
+selected_RIBO <- res_RIBO[keep_genes,]
+selected_RIBO$gene_id<- rownames(selected_RIBO)
+selected_RIBO<- selected_RIBO %>% select(gene_id,log2FoldChange)%>% rename("RIBO_LFC"=log2FoldChange) 
+
+keep_genes <- rownames(res_rna)[rownames(res_rna) %in% list_gene]
+selected_rna <- res_rna[keep_genes,]
+selected_rna$gene_id<- rownames(selected_rna)
+selected_rna<- selected_rna %>% select(gene_id,log2FoldChange)%>% rename("RNA_LFC"=log2FoldChange) 
+
+selected <- join(selected_TE,selected_RIBO, type="inner")
+selected <- join(selected,selected_rna, type="inner")
+selected <- selected %>% arrange(desc(TE_LFC))
+write.table(selected, paste0("/SSD/maa7095/RIBOseq/downstream_analysis/DESEQ2/Gene_classes/NO_SE_Suppl/", gene_class_name,".csv"), quote = F, sep = ",")
+
+selected <- gather(selected, comparison, fold_change, -gene_id, na.rm = F)
+
+selected <- selected %>%
+  pivot_wider(names_from = gene_id, values_from = fold_change)
+
+return(selected)
+
+}
+```
+
+
+## Plot class of genes in heatmap for all the sample.{.tabset}
+
+### Gene classification.
+```{r pressure, echo=FALSE, fig.cap="Gene classification", out.width = '100%'}
+knitr::include_graphics("gene_classification.png")
+```
+
+### Forwarded genes. Change in RPF is in the same direction as change in RNA
+```{r, echo=F, message=F, fig.height=15, fig.width=30}
+#Get the transformed values and filter genes
+subset_mat <- NOSE_TE_ddsMat_Coll_mat[forwarded,]
+
+#Now select the samples for each Condition
+heatmap <- pheatmap(subset_mat, scale="row", show_rownames = F, show_colnames = T, cluster_rows = T, legend = T, main =  "Forwarded genes: change in RPF is in the same direction as change in RNA; TE no sig", annotation_col =as.data.frame(colData(NOSE_TE_ddsMat))[, c("Data_type", "Condition")], silent = T, fontsize = 20)
+
+dataframe <- fold_change_plot(forwarded, "forwarded")
+p <- ggparcoord(data = dataframe,
+            columns = 2:ncol(dataframe),
+             groupColumn = "comparison", splineFactor = T ,scale = "globalminmax",  alphaLines=0.5) + 
+  scale_color_manual(name = "data class",
+                     values = c("TE_LFC"="red",
+                                "RNA_LFC"= "blue",
+                                  "RIBO_LFC"="black")) +theme_bw(base_size=20)
+fold_change <- p + labs(
+  title = "Forwarded genes",
+ y = "Log Fold Change", x = "Gene"
+) + theme(axis.text.x=element_blank(),
+           axis.ticks.x=element_blank()
+) 
+figure <- ggarrange(as.ggplot(heatmap), fold_change, 
+          labels = c("A", "B"),
+          ncol = 2, nrow = 1) 
+
+figure
+```
+
+### Exclusive genes. Change in RPF is not driven by change in RNA
+```{r, echo=F, message=F, fig.height=15, fig.width=30}
+
+#Get the transformed values and filter genes
+subset_mat <- NOSE_TE_ddsMat_Coll_mat[exclusive,]
+
+#Now select the samples for each Condition
+heatmap <-  pheatmap(subset_mat, scale="row", show_rownames = F, show_colnames = T, cluster_rows = T, legend = T, main =  "Exclusive genes: change in RPF is not driven by change in RNA ", annotation_col =as.data.frame(colData(NOSE_TE_ddsMat))[, c("Data_type", "Condition")], silent = T, fontsize = 20)
+
+dataframe <- fold_change_plot(exclusive, "exclusive")
+p <- ggparcoord(data = dataframe,
+            columns = 2:ncol(dataframe),
+            groupColumn = "comparison", splineFactor = TRUE, scale = "globalminmax",  alphaLines=0.5) + 
+  scale_color_manual(name = "data class",
+                     values = c("TE_LFC"="red",
+                                "RNA_LFC"= "blue",
+                                  "RIBO_LFC"="black")) +theme_bw(base_size=20)
+fold_change <- p + labs(
+  title = "Exclusive genes",
+  y = "Log Fold Change", x = "Gene"
+)+ theme(axis.text.x=element_blank(),
+           axis.ticks.x=element_blank()
+) 
+
+figure <- ggarrange(as.ggplot(heatmap), fold_change, 
+          labels = c("A", "B"),
+          ncol = 2, nrow = 1)
+
+figure
+```
+
+### Buffered 1 genes. Change in TE is completely counteracting the change in RNA; No change in RPF
+```{r, echo=F, message=F, fig.height=15, fig.width=30}
+#Get the transformed values and filter genes.
+subset_mat <- NOSE_TE_ddsMat_Coll_mat[buffered_1,]
+
+#Now select the samples for each Condition
+heatmap <- pheatmap(subset_mat, scale="row", show_rownames = F, show_colnames = T, cluster_rows = T, legend = T, main =  "Buffered 1 genes: change in TE is completely counteracting the change in RNA; sig changes in all", annotation_col =as.data.frame(colData(NOSE_TE_ddsMat))[, c("Data_type", "Condition")], silent = T, fontsize = 20)
+
+dataframe <- fold_change_plot(buffered_1, "buffered_1")
+p <- ggparcoord(data = dataframe,
+            columns = 2:ncol(dataframe),
+           groupColumn = "comparison", splineFactor = TRUE, scale = "globalminmax",  alphaLines=0.5) + 
+  scale_color_manual(name = "data class",
+                     values = c("TE_LFC"="red",
+                                "RNA_LFC"= "blue",
+                                  "RIBO_LFC"="black")) +theme_bw(base_size=20)
+fold_change <- p + labs(
+  title = "Buffered 1 genes",
+  y = "Log Fold Change", x = "Gene"
+)+ theme(axis.text.x=element_blank(),
+           axis.ticks.x=element_blank()
+) 
+
+figure <- ggarrange(as.ggplot(heatmap), fold_change, 
+          labels = c("A", "B"),
+          ncol = 2, nrow = 1)
+
+figure
+```
+
+### Buffered 2 genes. Change in TE is completely counteracting the change in RNA; No change in RPF
+```{r, echo=F, message=F, fig.height=15, fig.width=30}
+#Get the transformed values and filter genes.
+subset_mat <- NOSE_TE_ddsMat_Coll_mat[buffered_2,]
+
+#Now select the samples for each Condition
+heatmap <- pheatmap(subset_mat, scale="row", show_rownames = F, show_colnames = T, cluster_rows = T, legend = T, main =  "Buffered 2 genes: change in TE is completely counteracting the change in RNA; No change in RPF", annotation_col =as.data.frame(colData(NOSE_TE_ddsMat))[, c("Data_type", "Condition")], silent = T, fontsize = 20)
+
+dataframe <- fold_change_plot(buffered_2, "buffered_2")
+
+dataframe$comparison <- as.factor(dataframe$comparison)
+
+# Reshape the data into long format
+data_long <- tidyr::pivot_longer(dataframe, -comparison, names_to = "Variable", values_to = "Value")
+data_long <- data_long %>% arrange(desc(comparison=="TE_LFC"))
+# Create the parallel coordinates plot with smoothed lines
+#p <- ggplot(data_long, aes(x = Variable, y = Value, color = comparison, group = comparison)) +
+    #geom_point() +
+    #geom_smooth(se = T) +
+    #scale_color_manual(name = "data class",
+                       #values = c("TE_LFC" = "red",
+                                  #"RNA_LFC" = "blue",
+                                  #"RIBO_LFC" = "black")) +
+    #labs(x = "Comparison", y = "Value") +
+    #theme_minimal()
+
+p <- ggparcoord(data = dataframe,
+            columns = 2:ncol(dataframe),
+              groupColumn = "comparison", splineFactor = TRUE, scale = "globalminmax",  alphaLines=0.5) + 
+  scale_color_manual(name = "data class",
+                     values = c("TE_LFC"="red",
+                                "RNA_LFC"= "blue",
+                                  "RIBO_LFC"="black")) +theme_bw(base_size=20)
+fold_change <- p + labs(
+  title = "Buffered 2 genes",
+  y = "Log Fold Change", x = "Gene"
+)+ theme(axis.text.x=element_blank(),
+           axis.ticks.x=element_blank()
+) 
+
+figure <- ggarrange(as.ggplot(heatmap), fold_change, 
+          labels = c("A", "B"),
+          ncol = 2, nrow = 1)
+
+figure
+```
+
+
+### Intensified genes. Change in TE is counteracting the change in RNA
+```{r, echo=F, message=F, fig.height=15, fig.width=30}
+#Get the transformed values and filter genes
+subset_mat <- NOSE_TE_ddsMat_Coll_mat[intensified,]
+
+#Now select the samples for each Condition
+heatmap <- pheatmap(subset_mat, scale="row", show_rownames = F, show_colnames = T, cluster_rows = T, legend = T, main =  "Intensified genes: change in TE is counteracting the change in RNA", annotation_col =as.data.frame(colData(NOSE_TE_ddsMat))[, c("Data_type", "Condition")], silent = T, fontsize = 20)
+dataframe <- fold_change_plot(intensified, "intensified")
+# Convert the "comparison" column to a factor
+dataframe$comparison <- as.factor(dataframe$comparison)
+
+# Reshape the data into long format
+data_long <- tidyr::pivot_longer(dataframe, -comparison, names_to = "Variable", values_to = "Value")
+
+# Create the parallel coordinates plot with smoothed lines
+#p <- ggplot(data_long, aes(x = Variable, y = Value, color = comparison, group = comparison)) +
+    #geom_line(alpha = 0.5) +
+    #geom_smooth(se = FALSE, method="gam", method.args=list(degree=1)) +
+    #scale_color_manual(name = "data class",
+                       #values = c("TE_LFC" = "red",
+                                  #"RNA_LFC" = "blue",
+                                  #"RIBO_LFC" = "black")) +
+    #labs(x = "Comparison", #y = "Value") +
+    #theme_minimal()
+p <- ggparcoord(data = dataframe,
+            columns = 2:ncol(dataframe),
+             groupColumn = "comparison", splineFactor = TRUE, scale = "globalminmax",  alphaLines=0.5) + 
+  scale_color_manual(name = "data class",
+                     values = c("TE_LFC"="red",
+                                "RNA_LFC"= "blue",
+                                  "RIBO_LFC"="black")) +theme_bw(base_size=20)
+fold_change <- p + labs(
+  title = "Intensified genes",
+  y = "Log Fold Change", x = "Gene")+ theme(axis.text.x=element_blank(),
+           axis.ticks.x=element_blank()
+           
+) 
+
+figure <- ggarrange(as.ggplot(heatmap), fold_change, 
+          labels = c("A", "B"),
+          ncol = 2, nrow = 1)
+
+figure
+```
+
+
+### Gene global classification.
+
+```{r, echo=F, message=F,warning=F}
+# Identify common gene names
+common_genes <- intersect(rownames(res_RIBO), rownames(res_rna))
+
+# Subset data frames to include only common genes
+res_RIBO_common <- res_RIBO[common_genes, ]
+res_rna_common <- res_rna[common_genes, ]
+max_val = max(res_RIBO_common[,2],res_rna_common[,2],na.rm = T)
+min_val = -1*max_val
+
+# scatter data.
+scater_data <- data.frame(RIBO_LFC=res_RIBO_common$log2FoldChange,
+                          RNA_LFC=res_rna_common$log2FoldChange)
+scater_data$gene_values <- rownames(res_RIBO_common)
+
+coef(lm(RNA_LFC ~ RIBO_LFC, data = scater_data))
+
+scater_data$genecolour <- rep('black', nrow(scater_data))
+scater_data$genecolour[scater_data$gene_values %in% forwarded] <- 'green'
+scater_data$genecolour[scater_data$gene_values %in% exclusive]<- 'royalblue'
+scater_data$genecolour[scater_data$gene_values %in% intensified] <- 'red'
+scater_data$genecolour[scater_data$gene_values %in% buffered_1] <- 'salmon1'
+scater_data$genecolour[scater_data$gene_values %in% buffered_2] <- 'yellow'
+
+
+scater_data$classification <- rep('class', nrow(scater_data))
+scater_data$classification[scater_data$gene_values %in% forwarded] <- 'forwarded'
+scater_data$classification[scater_data$gene_values %in% exclusive]<- 'exclusive'
+scater_data$classification[scater_data$gene_values %in% intensified] <- 'intensified'
+scater_data$classification[scater_data$gene_values %in% buffered_1] <- 'buffered_1'
+scater_data$classification[scater_data$gene_values %in% buffered_2] <- 'buffered_2'
+
+scater_data$classification <- as.factor(scater_data$classification)
+table(scater_data$classification)
+```
+
+
+
+```{r, echo=F, message=F}
+
+ggplot(data=scater_data, aes(x = RNA_LFC, y = RIBO_LFC, colour=gene_values)) +
+  geom_point(aes(colour=classification), size=1) + 
+  scale_color_manual(name = "class",
+                     values = c("buffered_1"="salmon1",
+                                "buffered_2"= "yellow",
+                                  "intensified"="red",
+                                  "exclusive"="royalblue",
+                                "forwarded"="green",
+                                "class"="gray"),
+                     
+                     labels = c("buffered_1","buffered_2","no sig",  "exclusive", "forwarded", "intensified")) +
+  xlim(min_val,max_val) + 
+  ylim(min_val,max_val) +
+  geom_vline(xintercept = 0, colour="gray")+
+  geom_hline(yintercept = 0, colour="gray")+
+  geom_abline(intercept = -0.01165009, slope = 1, colour="gray") +
+  labs(x = "RNA_seq LFC", 
+       y = "RIBO_seq LFC") + 
+  theme(legend.title = element_text(size=12),
+        legend.text = element_text(size=10)) +
+  theme(
+    # Hide panel borders and remove grid lines
+    panel.border = element_blank(),
+    panel.background=element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    # Change axis line
+    axis.line = element_line(colour = "gray")) +
+  geom_hline(yintercept = 0, color = "gray") + theme_bw(base_size=20)
+
+
+```
+
+
+## {-}
+
+
+## ORT analysis of each class of genes.{.tabset}
+
+```{r, echo=F, message=F, warning=F}
+ORT_analysis <- function(de_list, gene_class_name){ 
+ego <- enrichGO(de_list,
+                OrgDb = "org.Hs.eg.db", 
+                ont="BP",
+                keyType = "SYMBOL", 
+                pAdjustMethod = "fdr",
+                pvalueCutoff  = 0.5,
+                qvalueCutoff  = 0.5
+)
+#remove redundant pathways  
+ego2 <-  clusterProfiler::simplify(ego)
+go_bp_all_genes<- data.frame(ego2@result)
+
+#write.csv(go_bp_all_genes,paste0("Results_no_outlier/",sample,"_ORT_results.csv") )
+
+#Plot the first 30 significant networks.
+reduced_go_bp_all_genes<- go_bp_all_genes[1:30,]
+reduced_go_bp_all_genes$'-log10(FDR.p.value)'<- -log10(reduced_go_bp_all_genes$p.adjust)
+reduced_go_bp_all_genes <- na.omit(reduced_go_bp_all_genes)
+write.table(reduced_go_bp_all_genes, paste0("/SSD/maa7095/RIBOseq/downstream_analysis/DESEQ2/ORT_results/NO_SE_Suppl/", gene_class_name,"_ORT.csv"), quote = F, sep = ",")
+
+#return(reduced_go_bp_all_genes)
+ggplot( reduced_go_bp_all_genes, aes( x="ORT", y=Description)) +  
+  geom_point(aes(size=Count, colour=`-log10(FDR.p.value)`)) + ylab (NULL) + theme_bw(base_size=20)
+}
+```
+
+### ORT Forwarded genes
+
+```{r, echo=F, message=F,fig.width=14, fig.height=12}
+ORT_analysis(forwarded, "forwarded")
+```
+
+### ORT Intensified genes
+```{r, echo=F, message=F,fig.width=14, fig.height=12}
+ORT_analysis(intensified, "intensified")
+```
+
+
+### ORT Exclusive genes
+```{r, echo=F, message=F,fig.width=14, fig.height=12}
+ORT_analysis(exclusive, "exclusive")
+```
+
+
+### ORT Buffered 1 genes
+```{r, echo=F, message=F,fig.width=12, fig.height=12}
+ORT_analysis(buffered_1, "buffered_1")
+```
+
+### ORT Buffered 2 genes
+```{r, echo=F, message=F,fig.width=16, fig.height=12}
+ORT_analysis(buffered_2, "buffered_2")
+```
+
+
+## {-}
+
+# Session info.
+```{r, echo=F, message=F}
+sessionInfo()
+```
+
