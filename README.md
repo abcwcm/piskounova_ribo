@@ -3,7 +3,7 @@
 Scripts related to the analysis of RIBO-seq and bulkRNA-seq data of FTSJ1 KO cell lines and xenograft data from primary and metastasis tumors by Nease et al.
 
 
-![](WCM_MB_LOGO_HZSS1L_CLR_RGB.png)
+![](WCM_MB_LOGO_HZSS1L_CLR_RGB_new.png)
 
 ## DATA AVAILABILITY
 
