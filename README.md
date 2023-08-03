@@ -12,11 +12,11 @@ Scripts related to the analysis of RIBO-seq and bulkRNA-seq data of FTSJ1 KO cel
 
 ## UPSTREAM ANALYSIS
 
-Reads from bulk RNA-seq and RIBO-seq libraries from cell lines were trimmed using `Trim Galore` v0.6.10 to remove nucleotides with low quality and adaptor contamination. Non-coding RNA was removed using a custom reference genome composed by miRNA, rRNA, tRNA and lncRNA sequences and using `STAR` v2.7.9a (PMCID: PMC3530905) with default parameters and removing all reads mapped to the non-coding RNAs. For mapping and isoform quantification, **MANE.GRCh38.v1.1** transcriptome reference (DOI: s41586-022-04558-8) was indexed using `Kallisto` pseudoaligner (https://doi.org/10.1038/nbt.3519) with `--kmer-size=21` option and isoform quantification was performed with `quant` function using MANE v1.1 annotation file.
+Reads from bulk RNA-seq and RIBO-seq libraries from cell lines were trimmed using `Trim Galore` v0.6.10 to remove nucleotides with low quality and adaptor contamination. Non-coding RNA was removed using a custom reference genome composed by miRNA, rRNA, tRNA and lncRNA sequences and using `STAR` v2.7.9a (PMCID: PMC3530905) with default parameters. Reads mapping to the custom reference were removed from further analysis. For mapping, **MANE.GRCh38.v1.1** transcriptome reference (DOI: s41586-022-04558-8) was indexed using `Kallisto` pseudoaligner (https://doi.org/10.1038/nbt.3519) with `--kmer-size=21` option and isoform quantification was performed with `quant` function using MANE v1.1 annotation file.
 
 For Xenograft data, in addition to the steps described above, mouse reads were removed before non-coding RNA removal using `bbsplit.sh` from `BBMap` v38.90 (https://escholarship.org/uc/item/1h3515gn) with default parameters and using **RefSeq GRCh38 v40** human and **GRCm39** mouse references. 
 
-Scripts used in this steps can be found [here] (https://github.com/abcwcm/piskounova_ribo/tree/main/analysis_scripts/upstream_analysis). 
+Scripts used in this steps can be found ([here] (https://github.com/abcwcm/piskounova_ribo/tree/main/analysis_scripts/upstream_analysis)). 
 
 ## DOWNSTREAM ANALYSIS
 
