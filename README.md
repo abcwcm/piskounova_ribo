@@ -19,7 +19,7 @@ Reads from bulk RNA-seq and RIBO-seq libraries from cell lines were trimmed usin
 For Xenograft data, in addition to the steps described above, mouse reads were removed in two different ways. Before non-coding RNA removal `bbsplit.sh` from `BBMap` v38.90 was used with `ambiguous2==”toss”` using gencode **GRCh38 human** and **GRCm39 mouse** references keeping only reads that mapped unambiguously to human reference. In addition to this, a mouse reference using healthy liver RIBO-seq data was created and reads that didn’t align to this reference (=Human reads) using `STAR` were kept for following steps. 
 
 
-Scripts used in this steps can be found [here] https://github.com/abcwcm/piskounova_ribo/tree/main/analysis_scripts/upstream_analysis. 
+Scripts used in this steps can be found [here](https://github.com/abcwcm/piskounova_ribo/tree/main/analysis_scripts/upstream_analysis). 
 
 
 
@@ -44,10 +44,12 @@ While for CDF plots (Figure X) psite coverage through all the gene body was used
 
 
 - **Ribosome readthrough by footprints plots**:
+
 Ribosome readthrough was determined based on the obtained CDS psite coverage values from the RIBO-seq libraries (Figure X). 5’ and 3’ coverages were calculated on fixed -X and +X bases relative to the Sec codon. Since we were using only CDS psite values and for some of the selenoproteins the distance between Sec and stop codon was limited, these fixed bins were different between selenoproteins. To determine significant differences between KO and WT (Met and Primary) conditions in footprints ratios, unpaired two-sided Student t-test from `rstatix` package was applied with a p < 0.05 cutoff (https://github.com/kassambara/rstatix). 
 ([Cell_line_footprint.Rmd](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/downstream_analysis/Cell_lines/Script4_cell_lines_readthrough_footprints.Rmd),[PXD_footprint.Rmd](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/downstream_analysis/Xenograft/Script4_PDX_readthrough_footprints.Rmd))
 
 
 - **Delta TE**:
+
 Translation efficiency was calculated based on the CDS based gene counts obtained from bulk RNAseq and from counts obtained for RIBOseq data from `In-frame psite identification and quantification`.([Cell_line_TE.Rmd](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/downstream_analysis/Cell_lines/Script5_cell_lines_Translation_Efficiency.Rmd),[PXD_TE.Rmd](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/downstream_analysis/Xenograft/Script5_PDX_Translation_Efficiency.Rmd))
 
