@@ -83,6 +83,12 @@ def STAR_mapping():
         Unmapped_option = my_config_dict['Unmapped_option']
         alignIntronMax = my_config_dict['alignIntronMax']
         quantMode = my_config_dict['quantMode']
+        anchor_max=my_config_dict['winAnchorMultimapNmax']
+        Lmax=my_config_dict['seedSearchStartLmax']
+        hang=my_config_dict['sjdbOverhang']
+        Wig=my_config_dict['outWigType']
+        SAMat=my_config_dict['SAMat']
+        annotation_file=my_config_dict['sjdbGTFfile']
         sample_name2 = re.split("_val", sample_file)[0]
         #sample_name3= re.split("_val", sample_name2)[0]
         genome_dir = os.path.dirname(genome_path)
@@ -91,19 +97,21 @@ def STAR_mapping():
         if aim == 'SE':
             cmd = "echo  STAR --runThreadN " + num_cores + " --genomeDir " + genome_dir + \
             " --readFilesIn " + dir_name + "/" +sample_name2 +" --readFilesCommand zcat "  +\
-            " --outFileNamePrefix " + dir_name + "/ouput/non_coding_" + sample_name2 +" --outSAMtype BAM SortedByCoordinate --outFilterMultimapNmax " + \
-            MultimappingMax + " --quantMode " + quantMode +" --outReadsUnmapped " + Unmapped_option + " --alignIntronMax " + alignIntronMax +\
-            " --limitBAMsortRAM 3726878714 --alignEndsType " + EndsType
-            
+            " --outFileNamePrefix " +  dir_name + "/gencodeG38/mapped_" +  sample_name2 +" --outSAMtype BAM SortedByCoordinate " + \
+            " --quantMode " + quantMode +" --outReadsUnmapped " + Unmapped_option + " --alignIntronMax " + alignIntronMax + " --outFilterMultimapNmax " + MultimappingMax + \
+            " --limitBAMsortRAM 3726878714 --alignEndsType " + EndsType + " --winAnchorMultimapNmax " + anchor_max + " --seedSearchStartLmax " + Lmax + " --sjdbOverhang " + hang + \
+            " --outWigType " + Wig + " --sjdbGTFfile " + annotation_file + " --outSAMattributes " + SAMat
 
+      
 
         if aim == 'PE':
 
             cmd = "echo  STAR --runThreadN " + num_cores + " --genomeDir " + genome_dir + \
-            " --readFilesIn " + dir_name + "/" +sample_name2 +"_val_1_outx.fq.gz " + dir_name + "/" +sample_name2 +"_val_2_outx.fq.gz " +" --readFilesCommand zcat "  +\
-            " --outFileNamePrefix " + dir_name + "/ouput/non_coding_" + sample_name2 +" --outSAMtype BAM SortedByCoordinate --outFilterMultimapNmax " + \
+            " --readFilesIn " + dir_name + "/" +sample_name2 +"_val_1_outhuman.fq.gz " + dir_name + "/" +sample_name2 +"_val_2_outhuman.fq.gz " +" --readFilesCommand zcat "  +\
+            " --outFileNamePrefix " + dir_name + "/non_coding/mapped_" + sample_name2 +" --outSAMtype BAM SortedByCoordinate --outFilterMultimapNmax " + \
             MultimappingMax + " --quantMode " + quantMode +" --outReadsUnmapped " + Unmapped_option + " --alignIntronMax " + alignIntronMax +\
-            " --limitBAMsortRAM 1818334857 --alignEndsType " + EndsType
+            " --limitBAMsortRAM 1818334857 --alignEndsType " + EndsType + " --winAnchorMultimapNmax " + anchor_max + " --seedSearchStartLmax " + Lmax + " --sjdbOverhang " + hang + \
+            " --outWigType " + Wig + " --sjdbGTFfile " + annotation_file + " --outSAMattributes " + SAMat
             
         return_val = os.system(cmd)
 

@@ -5,7 +5,7 @@ import logging
 import re
 
 '''Usage:trim_galore.py -f <path containing Raw files > -c <config file with software information> -a <single or pair end SE/PE>'''
-#python trim_galore.py -f fastq.list -a 'SE/PE' -c config_bulk.yml
+#python trim_galore.py -f fastq.list -a 'SE/PE'
 #trimm and output fastqc checking
 
 def msg():
@@ -72,11 +72,11 @@ def trim_galore():
         sample_name3 = re.split("_R\d+", sample_name)[0]
         if aim == 'SE':
             
-            cmd = " echo trim_galore --fastqc " + adaptor_option + " -o " + dir_name + "/trimmed_out/ " + " --basename trimmed_" + sample_name2 + " " + dir_name + "/" +sample_name
+            cmd = " echo trim_galore --fastqc " + adaptor_option + " -o " + dir_name + "/trimmed_out/ " + " --basename " + sample_name2 + " " + dir_name + "/" +sample_name
             return_val = os.system(cmd)
 
         if aim == 'PE':
-            cmd = " echo trim_galore --paired --fastqc_args " + adaptor_option + " -o " + dir_name + "/trimmed_out/"  + " --retain_unpaired -r1 25 -r2 25" + " --basename trimmed_" + sample_name2 + " " + dir_name + "/" +sample_name3 + "_R1_001.fastq.gz " +dir_name + "/" +sample_name3 + "_R2_001.fastq.gz " 
+            cmd = " echo trim_galore --paired --fastqc_args " + adaptor_option + " -o " + dir_name + "/trimmed_out/"  + " --retain_unpaired -r1 18 -r2 18" + " --basename " + sample_name2 + " " + dir_name + "/" +sample_name3 + "_R1_001.fastq.gz " +dir_name + "/" +sample_name3 + "_R2_001.fastq.gz " 
             return_val = os.system(cmd)
 
         
