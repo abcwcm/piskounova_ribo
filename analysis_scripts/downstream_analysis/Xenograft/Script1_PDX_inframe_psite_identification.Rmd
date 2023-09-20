@@ -1,0 +1,310 @@
+---
+title: "Script 1 PDX inframe psite identification"
+output: html_document
+date: '`r format(Sys.Date(), "%Y-%B-%d")`'
+---
+
+```{r, echo=F, message=F}
+library(devtools)
+library(riboWaltz)
+library(GenomicFeatures)
+library(stringr)
+library(plyr)
+library(ggplot2)
+library(dplyr)
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message=FALSE, warning=FALSE, result='hold',fig.width=10,tidy=TRUE, cache=FALSE, echo = F)
+knitr::opts_knit$set(progress=TRUE,verbose=TRUE)
+```
+
+```{r , echo=F, message=F, warning=F}
+#Load mapped bam files for each sample, as well as annotation file and trancritpome reference in fasta format.
+annotation_db <- create_annotation(gtfpath = "/local/storage/maa7095/references/human/gencode_primary/MANE_ref/MANE.GRCh38.v1.2.ensembl_genomic.gtf")
+```
+
+
+```{r , echo=F, message=F, warning=F}
+#Creates table with start codon, end codon and CDS positions for each read from bam file.
+reads_list <- bamtolist(bamfolder = "/SSD/maa7095/RIBOseq/Shino_new_analysis/Xenograft/trimmed_out/non_coding/ribo_mouse_ref/gencodeG38/Transcriptome_mapping/RIBO_bam/", annotation = annotation_db)
+```
+
+
+```{r, echo=F, message=F, warning=F}
+#Filter reads by length.
+filtered_list <- length_filter(data = reads_list,
+ 			        length_filter_mode = "custom",
+ 				length_range = 20:35) #
+```
+
+
+```{r, echo=F, message=F, warning=F}
+#Calculate p-site offset.
+psite_offset <- psite(filtered_list, flanking = 6, extremity = "auto", plot = F, plot_dir = "ribowaltz_output_plots")
+```
+
+
+```{r, echo=F, message=F, warning=F}
+reads_psite_list <- psite_info(filtered_list, psite_offset, fasta_genome = T,refseq_sep = " ", gtfpath ="/local/storage/maa7095/references/human/gencode_primary/MANE_ref/MANE.GRCh38.v1.2.ensembl_genomic.gtf" ,fastapath = "/local/storage/maa7095/references/human/gencode_primary/MANE_ref/GRCh38.primary_assembly.genome.fa",site = c("psite","asite","esite"))
+```
+
+```{r}
+#identify selenoproteins
+selenoprot <- c("ENST00000419783.3","ENST00000389614.6","ENST00000388825.9","ENST00000354171.13","ENST00000361902.5","ENST00000525566.6","ENST00000400521.7","ENST00000361921.8","ENST00000438257.9","ENST00000510508.5","ENST00000361871.8","ENST00000534355.6","ENST00000260585.12","ENST00000495461.6","ENST00000400299.6","ENST00000361547.7","ENST00000380903.7","ENST00000514985.6","ENST00000526049.6","ENST00000471696.6","ENST00000335426.9","ENST00000601048.6","ENST00000331835.10","ENST00000478753.5","ENST00000524230.9")
+```
+
+#Following the analysis I had before I need to create folders with Selenoproteins names and then inside it coverage for each sample separated in tables. (This way I can use the script I have). The thing is not I have the oposite sample separated tables and then all selenoproteins together.
+```{r}
+for (i in selenoprot){
+  out_dir <- paste0("/SSD/maa7095/RIBOseq/Shino_new_analysis/inframe_downtream_analysis/Xenograft/p_site_coverage/",i)
+  if (isFALSE(dir.exists(out_dir))){
+  dir.create(out_dir)
+  }
+  seleno_reads <- lapply(reads_psite_list, function(df) df[df$transcript %in% i, ])
+  seleno_reads <- lapply(seleno_reads, function(df) df[psite_from_start %% 3 == 0])
+  for(samples in names(seleno_reads)){
+    sub_seleno_reads <- seleno_reads[[samples]] %>% dplyr::select(transcript, psite)
+    samples <- str_split(samples, "_outhuman.fq.gzUnmapped.out.mate1.fq.gzUnmapped.out.mate1.gzAligned.toTranscriptome.out")[[1]][1]
+    samples <- str_split(samples,"mapped_mapped_mapped_")[[1]][2]
+    coverage_table <- sub_seleno_reads %>% 
+      group_by(transcript,psite) %>% 
+      summarize(count = n()) %>% 
+      ungroup()
+    coverage_table <- coverage_table %>% arrange(psite)
+    write.table(coverage_table, paste0(out_dir,"/",i,"_",samples,".cov"), sep="\t", col.names = F, row.names = F, quote = F)
+  }
+}
+```
+
+
+```{r}
+#Create count table based on inframe psite CDS only.
+CDS_RIBO_raw_counts_xeno <- cds_coverage(reads_psite_list, annotation_db, in_frame = T)
+write.csv(CDS_RIBO_raw_counts_xeno, "/SSD/maa7095/RIBOseq/Shino_new_analysis/inframe_downtream_analysis/Xenograft/TE_analysis/CDS_RIBO_raw_counts.csv", row.names = F)
+```
+
+# Plot in-frame psite location through regions.
+Both plots show an enrichment of P-sites in the first frame on the coding sequence but not the UTRs, as expected for ribosome protected fragments from protein coding mRNAs.
+```{r}
+output_folder <-"/SSD/maa7095/RIBOseq/Shino_new_analysis/inframe_downtream_analysis/Xenograft/Codon_usage/in_frame_psite_regions/" 
+for( i in names(reads_psite_list)){
+
+pdf(file = paste0(output_folder,
+                  i, "_inframe_psite_region.pdf"),   # The directory you want to save the file in
+    height = 12, 
+    width = 10) 
+ 
+frame_regions <- frame_psite(
+  reads_psite_list,
+  sample = i,
+  transcripts = NULL,
+  region = "all",
+  length_range = "all",
+)
+
+ print(frame_regions[["plot"]])
+   
+ dev.off()
+}
+```
+
+
+
+# P-site analysis.
+
+```{r, echo=F, message=F, warning=F}
+codon_list <- unique(reads_psite_list[[1]]$p_site_codon)
+scatter_data_frame_p_transcripts <-data.frame(codon=codon_list)
+output_folder <-"/SSD/maa7095/RIBOseq/Shino_new_analysis/inframe_downtream_analysis/Xenograft/Codon_usage/All_transcripts/psite/" 
+for( i in names(reads_psite_list)){
+
+pdf(file = paste0(output_folder,
+                  i, "_psite_codon_usage.pdf"),   # The directory you want to save the file in
+    height = 12, 
+    width = 10) 
+ 
+ codon_usage_barplot <- codon_usage_psite(
+   reads_psite_list,
+   annotation_db,
+   i,
+   site = "psite",
+   fastapath = "/local/storage/maa7095/references/human/gencode_primary/MANE_ref/GRCh38.primary_assembly.genome.fa",
+   fasta_genome = T,
+   refseq_sep = " ",
+   bsgenome = NULL,
+   gtfpath = "/local/storage/maa7095/references/human/gencode_primary/MANE_ref/MANE.GRCh38.v1.2.ensembl_genomic.gtf",
+   txdb = NULL,
+   dataSource = NA,
+   organism = NA,
+   transcripts = NULL,
+   frequency_normalization = TRUE,
+   codon_values = NULL,
+   label_scatter = FALSE,
+   label_number = 64,
+   label_aminoacid = T
+ )
+ 
+ 
+ print(codon_usage_barplot[["plot"]])
+   
+ dev.off()
+ values <- as.data.frame(codon_usage_barplot[["dt"]])
+ name<-paste0(i)
+  name <- str_split(name, "_outhuman.fq.gzUnmapped.out.mate1.fq.gzUnmapped.out.mate1.gzAligned.toTranscriptome.out")[[1]][1]
+  name <- str_split(name,"mapped_mapped_mapped_")[[1]][2]
+ values <- values %>% dplyr::select(codon,plot_value)
+ values <- values %>% dplyr::rename(!!paste0(name):=plot_value)
+ scatter_data_frame_p_transcripts <- join(scatter_data_frame_p_transcripts,values,by="codon",type="full")
+ 
+ 
+}
+
+df_filtered_ALL <- scatter_data_frame_p_transcripts[rowSums(!is.na(scatter_data_frame_p_transcripts[, -1])) > 0, ]
+```
+
+```{r, echo=F, message=F, warning=F}
+write.table(df_filtered_ALL, "/SSD/maa7095/RIBOseq/Shino_new_analysis/inframe_downtream_analysis/Xenograft/Codon_usage/All_transcripts/ALL_transcript_psite_codon_usage.csv", quote = F, sep = ",")
+```
+SQ= primary tumor, Met=metastasis
+```{r, echo=F, message=F, warning=F}
+df_filtered_ALL$sq_MEAN <- rowMeans(df_filtered_ALL %>% dplyr::select(contains("sq")))
+df_filtered_ALL$met_liv_MEAN <- rowMeans(df_filtered_ALL %>% dplyr::select(contains("met_liv")))
+```
+
+
+```{r, echo=F, message=F, warning=F}
+start_codon <- "AUG"
+stop_codon <- c("UAA", "UAG")
+sec <- "UGA"
+```
+
+
+
+
+```{r, echo=F, message=F, warning=F, fig.width=10, fig.height=10}
+bs <- 30
+correlation <- round(cor(df_filtered_ALL$met_liv_MEAN, df_filtered_ALL$sq_MEAN), 3)
+slope <- round(coef(lm(df_filtered_ALL$met_liv_MEAN~df_filtered_ALL$sq_MEAN))[[2]], 3)
+intercept <- round(coef(lm(df_filtered_ALL$met_liv_MEAN~df_filtered_ALL$sq_MEAN))[[1]], 3)
+codon_list <- unique(df_filtered_ALL$codon)
+codon_list <- subset(codon_list, !codon_list %in% c("AUG", "UAA","UAG","UGA"))
+
+p<- ggplot(df_filtered_ALL, aes(x=met_liv_MEAN, y=sq_MEAN, colour=codon)) + 
+  geom_point()+
+  geom_text(label=df_filtered_ALL$codon, 
+    nudge_x = 0.01, nudge_y = 0.02, 
+    check_overlap = T) +
+  geom_smooth(method = "lm", se=T, color="gray80", fill="gray80", linetype = 1, formula = y ~ x, level = 0.99,  fullrange = TRUE) +
+  geom_point(alpha = 0.9, size = 30 * 0.14) +
+      scale_colour_manual(name="",values=c("AUG"="blue","UAA"="red", "UAG"="red", "UGA"="orange", codon_list="black")) +
+      theme_bw(base_size = 30) +
+      theme(legend.text = element_text(margin = margin(l = -12, unit = "pt"))) +
+      theme(panel.grid.minor.y = element_blank(), panel.grid.minor.x = element_blank()) +
+      scale_x_continuous(name = "Liver metastasis", limits = c(-0.3,1.3), breaks = c(0,0.25,0.5,0.75,1), expand = c(0,0)) +
+      scale_y_continuous(name ="Primary tumor", limits = c(-0.3,1.3), breaks = c(0,0.25,0.5,0.75,1), expand = c(0,0)) +
+      coord_cartesian(xlim = c(-0.05,1.05), ylim = c(-0.05,1.05)) +
+      annotate("text", x = 1, y = c(0, 0.05,0.1), label = c(paste0("R=",correlation), paste0("m=",slope), paste0("b=",intercept)), vjust = -0.2, size = bs * 0.2, hjust = 1, color = "black") + ggtitle("P site usage for all transcripts")
+
+p
+```
+
+
+
+```{r, echo=F, message=F, warning=F}
+codon_list <- unique(reads_psite_list[[1]]$p_site_codon)
+scatter_data_frame_p_seleno <-data.frame(codon=codon_list)
+output_folder <-"/SSD/maa7095/RIBOseq/Shino_new_analysis/inframe_downtream_analysis/Xenograft/Codon_usage/All_selenoproteins/psite/"
+for( i in names(reads_psite_list)){
+
+pdf(file = paste0(output_folder,
+                  i, "_psite_codon_usage.pdf"), 
+       height = 12, 
+     width = 10) 
+ 
+ codon_usage_barplot <- codon_usage_psite(
+   reads_psite_list,
+   annotation_db,
+   i,
+   site = "psite",
+   fastapath = "/local/storage/maa7095/references/human/gencode_primary/MANE_ref/GRCh38.primary_assembly.genome.fa",
+   fasta_genome = T,
+   refseq_sep = " ",
+   bsgenome = NULL,
+   gtfpath = "/local/storage/maa7095/references/human/gencode_primary/MANE_ref/MANE.GRCh38.v1.2.ensembl_genomic.gtf",
+   txdb = NULL,
+   dataSource = NA,
+   organism = NA,
+   transcripts = c("ENST00000419783.3","ENST00000389614.6","ENST00000388825.9","ENST00000354171.13","ENST00000361902.5","ENST00000525566.6","ENST00000400521.7","ENST00000361921.8","ENST00000438257.9","ENST00000510508.5","ENST00000361871.8","ENST00000534355.6","ENST00000260585.12","ENST00000495461.6","ENST00000400299.6","ENST00000361547.7","ENST00000380903.7","ENST00000514985.6","ENST00000526049.6","ENST00000471696.6","ENST00000335426.9","ENST00000601048.6","ENST00000331835.10","ENST00000478753.5","ENST00000524230.9"),
+   frequency_normalization = TRUE,
+   codon_values = NULL,
+   label_scatter = FALSE,
+   label_number = 64,
+   label_aminoacid = T
+ )
+ 
+ 
+ print(codon_usage_barplot[["plot"]])
+   
+ dev.off()
+ values <- as.data.frame(codon_usage_barplot[["dt"]])
+ write.table(values, paste0(output_folder,
+                  i, "_psite_codon_usage.csv"), quote = F, sep = "," )
+ name<-paste0(i)
+  name <- str_split(name, "_outhuman.fq.gzUnmapped.out.mate1.fq.gzUnmapped.out.mate1.gzAligned.toTranscriptome.out")[[1]][1]
+  name <- str_split(name,"mapped_mapped_mapped_")[[1]][2]
+  values <- values %>% dplyr::select(codon,plot_value)
+ values <- values %>% dplyr::rename(!!paste0(name):=plot_value)
+ scatter_data_frame_p_seleno <- join(scatter_data_frame_p_seleno,values,by="codon",type="full")
+ 
+ 
+}
+
+df_filtered <- scatter_data_frame_p_seleno[rowSums(!is.na(scatter_data_frame_p_seleno[, -1])) > 0, ]
+```
+
+```{r, echo=F, message=F, warning=F}
+write.table(df_filtered, "/SSD/maa7095/RIBOseq/Shino_new_analysis/inframe_downtream_analysis/Xenograft/Codon_usage/All_selenoproteins/Seleno_psite_codon_usage.csv", quote = F, sep = ",")
+```
+
+
+
+
+
+```{r, echo=F, message=F, warning=F}
+df_filtered$sq_MEAN <- rowMeans(df_filtered %>% dplyr::select(contains("sq")))
+df_filtered$met_liv_MEAN <- rowMeans(df_filtered %>% dplyr::select(contains("met_liv")))
+```
+
+
+
+```{r, echo=F, message=F, warning=F, fig.width=10, fig.height=10}
+bs <- 30
+correlation <- round(cor(df_filtered$met_liv_MEAN, df_filtered$sq_MEAN), 3)
+slope <- round(coef(lm(df_filtered$met_liv_MEAN~df_filtered$sq_MEAN))[[2]], 3)
+intercept <- round(coef(lm(df_filtered$met_liv_MEAN~df_filtered$sq_MEAN))[[1]], 3)
+codon_list <- unique(df_filtered$codon)
+codon_list <- subset(codon_list, !codon_list %in% c("AUG", "UAA","UAG","UGA"))
+
+p<- ggplot(df_filtered, aes(x=met_liv_MEAN, y=sq_MEAN, colour=codon)) + 
+  geom_point()+
+  geom_text(label=df_filtered$codon, 
+    nudge_x = 0.01, nudge_y = 0.02, 
+    check_overlap = T) +
+  geom_smooth(method = "lm", se=T, color="gray80", fill="gray80", linetype = 1, formula = y ~ x, level = 0.99,  fullrange = TRUE) +
+  geom_point(alpha = 0.9, size = 30 * 0.14) +
+      scale_colour_manual(name="",values=c("AUG"="blue","UAA"="red", "UAG"="red", "UGA"="orange", codon_list="black")) +
+      theme_bw(base_size = 30) +
+      theme(legend.text = element_text(margin = margin(l = -12, unit = "pt"))) +
+      theme(panel.grid.minor.y = element_blank(), panel.grid.minor.x = element_blank()) +
+      scale_x_continuous(name = "Liver metastasis ", limits = c(-0.3,1.3), breaks = c(0,0.25,0.5,0.75,1), expand = c(0,0)) +
+      scale_y_continuous(name = "Primary tumor ", limits = c(-0.3,1.3), breaks = c(0,0.25,0.5,0.75,1), expand = c(0,0)) +
+      coord_cartesian(xlim = c(-0.05,1.05), ylim = c(-0.05,1.05)) +
+      annotate("text", x = 1, y = c(0, 0.05,0.1), label = c(paste0("R=",correlation), paste0("m=",slope), paste0("b=",intercept)), vjust = -0.2, size = bs * 0.2, hjust = 1, color = "black") + ggtitle("P site usage for selenoproteins")
+p
+```
+
+
+
+
