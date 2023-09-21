@@ -8,6 +8,5 @@ EndsType: "EndToEnd"
 winAnchorMultimapNmax: 100
 seedSearchStartLmax: 20
 sjdbOverhang: 43
-outWigType: 'None'
-sjdbGTFfile: '/local/storage/maa7095/references/human/gencode_primary/MANE_ref/MANE.GRCh38.v1.2.ensembl_genomic.gtf'
+sjdbGTFfile: '-'
 SAMat: 'Standard'
