@@ -7,13 +7,9 @@ import re
 
 '''Usage:STAR_mapping.py -f <path containing samples > -g <whole path containing genome> -c <config file with software information> -a <single or pair end SE/PE>'''
 #python STAR_mapping.py -c config_mapping.yml -a PE -f sample.list -g /share/data/Illumina_Databases/human/star/genocode_GRCh38-v41/
-
-#(needs to be the output of trimmomatic)
-#ls -d /share/data/RNA_Seq/Matt_Cummings/Working/Trimmed_reads/output_* > sample.list
-#cat sample.lst
-#/share/data/RNA_Seq/ETT/star_Aug29_2022/test_raw_data/output_MP22-PRE-Control-Null
-#/share/data/RNA_Seq/ETT/star_Aug29_2022/test_raw_data/output_MP30-PRE-Case-Null
-#/share/data/RNA_Seq/ETT/star_Aug29_2022/test_raw_data/output_MP45-PRE-Case-Null
+#cat sample.list
+#non_coding_ko1_no_se_RIBO_1_trimmed.c.tag.fq.gzUnmapped.out.R1.fastq.gz
+#non_coding_ko1_no_se_RIBO_2_trimmed.c.tag.fq.gzUnmapped.out.R1.fastq.gz
 
 def msg():
     return ''' This script runs star mapping program to generate mapping alignemnts.
@@ -73,7 +69,6 @@ def STAR_mapping():
     genome_dir = os.path.dirname(all_path_genome)
     
     genome_annot = all_path_genome.split(".")[0]
-    #genome_annot = all_path_genome.split(".")[0]
     sample_dictionary = make_sample_dict()
 
     for sample_file, dir_name in sample_dictionary.items():
@@ -90,7 +85,6 @@ def STAR_mapping():
         SAMat=my_config_dict['SAMat']
         annotation_file=my_config_dict['sjdbGTFfile']
         sample_name2 = re.split("_val", sample_file)[0]
-        #sample_name3= re.split("_val", sample_name2)[0]
         genome_dir = os.path.dirname(genome_path)
 
 
