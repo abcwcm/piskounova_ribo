@@ -24,8 +24,7 @@ Scripts related to the analysis of RIBO-seq and bulkRNA-seq data of FTSJ1 KO cel
 
 - **Step 6**. `STAR` was again used with `–alignEndsType EndToEnd` and `–quantMode TranscriptomeSAM`, and using **GRCh38 primary assembly** genome and **MANE v1.2** annotation file to obtain transcriptome and genome mapping coordinates. Same script (([STAR_mapping.py](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/upstream_analysis/STAR_mapp.py)), ([config_file.yml](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/upstream_analysis/config_bulk.yml))), but set up parameters at `config_mapping.yml`.
 
-- **Step 7**. Using bam files originated from the mapping of RNA-seq reads to the whole genome, quantification of reads mapping to CDS regions was calculated using `featureCounts` v 2.0.1 with ` -t CDS ` ([config_file.yml](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/upstream_analysis/config_bulk.yml))). 
-
+- **Step 7**. Using bam files originated from the mapping of RNA-seq reads to the whole genome, quantification of reads mapping to CDS regions was calculated using `featureCounts` v 2.0.1. `featureCounts -t CDS -g gene_id -O -s 0 -a MANE.GRCh38.v1.2.ensembl_genomic.gtf -o CDS_RNA_counts_not_strand.txt *RNA*bam`. 
 
 For Xenograft data, in addition to the steps described above, mouse reads were removed in two different ways:
 
