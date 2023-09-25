@@ -11,7 +11,7 @@ Scripts related to the analysis of RIBO-seq and bulkRNA-seq data of FTSJ1 KO cel
 
 ## DATA ANALYSIS
 
-[](RIBO-seq_diagram.png)
+![](RIBO-seq_diagram.png)
 
 
 ## UPSTREAM ANALYSIS
@@ -20,9 +20,9 @@ Scripts related to the analysis of RIBO-seq and bulkRNA-seq data of FTSJ1 KO cel
 
 - **Step 2**. For RIBO-seq data, duplicated reads created by PCR amplification were removed based on UMI and using `fastq2collapse.pl` and `stripBarcode.pl` scripts from `CTK tool kit` ([CTK_duplicates.sh](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/upstream_analysis/CTK_rm_dupl.sh)).
 
-- **Step 4**. From `Trim Galore` output for RNA-seq and `CTK` output for RIBO-seq, non-coding RNA was removed using a custom reference genome composed by miRNA, rRNA, tRNA and lncRNA sequences using `STAR` v2.7.9a with `–alignEndsType Local` ([STAR_mapping.py](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/upstream_analysis/STAR_mapp.py)), ([config_file.yml](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/upstream_analysis/config_bulk.yml)). Usage of the sript: `python STAR_mapping.py -c config_mapping.yml -a SE -f sample.list -g genome_reference` where `-f sample.list` poiints to the trim files, `-g genome_reference ` points to the whole path to indexed genome, `-a SE` indicates single-end sequencing and `-c config_mapping.yml` points to set up paarmeters. 
+- **Step 4**. From `Trim Galore` output for RNA-seq and `CTK` output for RIBO-seq, non-coding RNA was removed using a custom reference genome composed by miRNA, rRNA, tRNA and lncRNA sequences using `STAR` v2.7.9a with `–alignEndsType Local` ([STAR_mapping.py](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/upstream_analysis/STAR_mapp.py)), ([config_file.yml](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/upstream_analysis/config_bulk.yml)). Usage of the sript: `python STAR_mapping.py -c config_mapping.yml -a SE -f sample.list -g genome_reference` where `-f sample.list` points to the trim files, `-g genome_reference ` points to the whole path of a indexed genome, `-a SE` indicates single-end sequencing and `-c config_mapping.yml` points to set up paarmeters. 
 
-- **Step 6**. `STAR` was again used with `–alignEndsType EndToEnd` and `–quantMode TranscriptomeSAM`, and using **GRCh38 primary assembly** genome and **MANE v1.2** annotation file to obtain transcriptome and genome mapping coordinates. Use the same script (([STAR_mapping.py](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/upstream_analysis/STAR_mapp.py)), ([config_file.yml](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/upstream_analysis/config_bulk.yml))), but changing needed parameters at `config_mapping.yml`.
+- **Step 6**. `STAR` was again used with `–alignEndsType EndToEnd` and `–quantMode TranscriptomeSAM`, and using **GRCh38 primary assembly** genome and **MANE v1.2** annotation file to obtain transcriptome and genome mapping coordinates. Same script (([STAR_mapping.py](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/upstream_analysis/STAR_mapp.py)), ([config_file.yml](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/upstream_analysis/config_bulk.yml))), but set up parameters at `config_mapping.yml`.
 
 - **Step 7**. Using bam files originated from the mapping of RNA-seq reads to the whole genome, quantification of reads mapping to CDS regions was calculated using `featureCounts` v 2.0.1 with ` -t CDS ` ([config_file.yml](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/upstream_analysis/config_bulk.yml))). 
 
@@ -34,13 +34,13 @@ For Xenograft data, in addition to the steps described above, mouse reads were r
 - **Step 5**. In addition to this, a custom reference using **mouse healthy liver RIBO-seq** data was created and reads that didn’t align to this reference (=Human reads) using `STAR` (([STAR_mapping.py](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/upstream_analysis/STAR_mapp.py)), ([config_file.yml](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/upstream_analysis/config_bulk.yml))) and `–alignEndsType EndToEnd` were kept for following steps. 
 
 
-- **Step 8**. Translation efficiency (TE) was calculated based on the CDS based gene counts obtained from bulk RNAseq and from counts obtained for RIBOseq data from `In-frame psite identification and quantification`.([Cell_line_TE.Rmd](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/downstream_analysis/Cell_lines/Script5_cell_lines_Translation_Efficiency.Rmd),[PXD_TE.Rmd](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/downstream_analysis/Xenograft/Script5_PDX_Translation_Efficiency.Rmd))
+- **Step 8**. Translation efficiency (TE) was calculated based on the CDS gene counts obtained from bulk RNA-seq and counts obtained for RIBO-seq data from `In-frame psite identification and quantification`.([Cell_line_TE.Rmd](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/downstream_analysis/Cell_lines/Script5_cell_lines_Translation_Efficiency.Rmd),[PXD_TE.Rmd](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/downstream_analysis/Xenograft/Script5_PDX_Translation_Efficiency.Rmd))
 
 
 
 ## RIBO P-SITE BASED DOWNSTREAM ANALYSIS
 
-From ribosome profile bam files originated from mapping to the transcriptome in both cell lines and PDX samples in-frame psite coverages were calculated using `riboWaltz` package. This in-frame psite coverages were used then to calculate stalling based on downstream cumulative distribution function (CDF), to identify readthrough by 5’ and 3’ footprints,  to calculate psite codon usage and finally, to quantify CDS in-frame psite  counts for all genes to use in translation efficiency (TE) analysis. 
+From ribosome profile bam files originated from mapping to the transcriptome `Step 6` in both cell lines and PDX samples in-frame psite coverages were calculated using `riboWaltz` package. This in-frame psite coverages were used then to calculate stalling based on downstream cumulative distribution function (CDF), to identify readthrough by 5’ and 3’ footprints,  to calculate psite codon usage and finally and to quantify CDS in-frame psite counts for all genes to use in translation efficiency (TE) analysis. 
 
 
 - **Step 7.1: In-frame psite identification and quantification**:
