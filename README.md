@@ -16,7 +16,13 @@ Scripts related to the analysis of RIBO-seq and bulkRNA-seq data of FTSJ1 KO cel
 
 ## UPSTREAM ANALYSIS
 
-- **Step 1**. Reads from bulk RNA-seq and RIBO-seq libraries from cell lines were trimmed using `Trim Galore` v0.6.10 to remove nucleotides with low quality and adaptor contamination ([trim_galore.py](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/upstream_analysis/trim_galore.py)) , ([config_file.yml](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/upstream_analysis/config_bulk.yml)). Usage of the script: `python -f sample.list -c config.yml -a SE` where `-f sample.list` points to the raw files, `-a SE` indicates single-end sequencing and `-c config_mapping.yml` points to set up parameters.
+- **Step 1**. Reads from bulk RNA-seq and RIBO-seq libraries from cell lines were trimmed using `Trim Galore` v0.6.10 to remove nucleotides with low quality and adaptor contamination using ([trim_galore.py](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/upstream_analysis/trim_galore.py)) , ([config_file.yml](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/upstream_analysis/config_bulk.yml)) script. The usage of the script is as follows:
+`python trim_galore.py -f sample.list -c config.yml -a SE > commans.txt`
+`cat commans.txt | parallel ` to pipe it parallel and where;
+`-f sample.list` points to the raw files, `-a SE` indicates single-end sequencing and `-c config_mapping.yml` points to set up parameters.
+`cat sample.list`
+`#ko1_se_RIBO_2_S10_L004_R1_001.fastq.gz`
+`#ko1_noSe_RNA_1_S3_L001_R1_001.fastq.gz`
 
 - **Step 2**. For RIBO-seq data, duplicated reads created by PCR amplification were removed based on UMI and using `fastq2collapse.pl` and `stripBarcode.pl` scripts from `CTK tool kit` ([CTK_duplicates.sh](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/upstream_analysis/CTK_rm_dupl.sh)).
 
