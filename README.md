@@ -16,7 +16,7 @@ Scripts related to the analysis of RIBO-seq and bulkRNA-seq data of FTSJ1 KO cel
 
 ## UPSTREAM ANALYSIS
 
-The script to run all upstream steps is found in ([ALL_DATATYPES_upstream.sh](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/upstreamanalysis/Cell_lines/ALL_DATATYPES_upstream.sh). The way to run this script is as follows:
+The script to run all upstream steps is found in [ALL_DATATYPES_upstream.sh](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/upstreamanalysis/Cell_lines/ALL_DATATYPES_upstream.sh). The way to run this script is as follows:
     - `./ALL_DATATYPES_upstream.sh --aim RIBO_CELL|RIBO_PDX|RNA_CELL|RNA_PDX --raw-data-dir data_directory_path`
 
 - **Step 1**. Reads from bulk RNA-seq and RIBO-seq libraries from cell lines were trimmed using `Trim Galore` v0.6.10 to remove nucleotides with low quality and adaptor contamination.
