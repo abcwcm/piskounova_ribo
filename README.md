@@ -19,6 +19,7 @@ Scripts related to the analysis of RIBO-seq and bulkRNA-seq data of FTSJ1 KO cel
 The script to run all upstream steps is found in [ALL_DATATYPES_upstream.sh](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/upstream_analysis/ALL_DATATYPES_upstream.sh). It needs a configuration file where all the necessary reference and annotation files will be pointed. The script works as follows;
 
     > `./ALL_DATATYPES_upstream.sh --aim RIBO_CELL|RIBO_PDX|RNA_CELL|RNA_PDX --config config.yml  --raw-data-dir data_directory_path`
+    
     Example:
 
 
