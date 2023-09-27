@@ -72,9 +72,13 @@ function ribo_data_pipeline {
     local f
 
     sample_name=$(basename "$file" .fastq.gz)
-    f=$(basename "$sample_name")
+    echo " $sample_name"
+    sample_name2=$(basename "$sample_name")
+    f=$(echo "$sample_name2" | awk -F "_S" '{print $1}')
+    echo " *** Start working with sample $f ***"
 
     #Step 1 trimming
+    echo " *** Start Step 1 trimming for $f ***"
 
     trim_folder="${raw_data_directory}trimmed/"
 
@@ -100,12 +104,15 @@ function ribo_data_pipeline {
         echo "Directory created: $collapsed_folder"
     fi
 
-    #Step 2 remove duplicated
+    
 
-    if [ "$aim" == "RIBO_CELL" ] || [ "$aim" == "RIBO_PDX" ]; then 
+    if [ "$AIM_OPTION" == "RIBO_CELL" ] || [ "$AIM_OPTION" == "RIBO_PDX" ]; then 
         eval "$(conda shell.bash hook)"
         source activate ctk_duplicates
         # Just for RIBO_CELL and RIBO_PDX
+
+        #Step 2 trimming
+        echo " *** Start Step 2 PCR duplicates removal for $f ***"
 
         fastq2collapse.pl "${trim_folder}${f}_trimmed.fq.gz" - | gzip -c > "${collapsed_folder}${f}_trimmed.c.fq.gz"
         stripBarcode.pl -format fastq -len 8 "${collapsed_folder}${f}_trimmed.c.fq.gz" - | gzip -c > "${collapsed_folder}${f}_trimmed.c.tag.fq.gz"
@@ -118,6 +125,10 @@ function ribo_data_pipeline {
         if [ "$AIM_OPTION" == "RIBO_CELL" ]; then
             mv "${collapsed_folder}${f}_trimmed.c.tag.fq.gz" "${collapsed_folder}${f}_cleaned.fq.gz"
         else
+
+            #Step 3 trimming
+            echo " *** Start Step 3 removing mouse reads for $f ***"
+
             bbsplit.sh build=1 in="${collapsed_folder}${f}_trimmed.c.tag.fq.gz" ref_human="$genome_human" ref_mouse="$genome_mouse" basename="${collapsed_folder}${f}_out%.fq.gz" scafstats="${collapsed_folder}${f}_scaf.txt" refstats="${collapsed_folder}${f}_ref.txt" path="$collapsed_folder" ambiguous2=toss
             mv "${collapsed_folder}${f}_outhuman.fq.gz" "${collapsed_folder}${f}_cleaned.fq.gz"
         fi
@@ -128,6 +139,9 @@ function ribo_data_pipeline {
     source activate bulkrnaseq
 
     if [ "$AIM_OPTION" == "RNA_PDX" ]; then
+
+        #Step 3 trimming
+        echo " *** Start Step 3 removing mouse reads for $f ***"
         bbsplit.sh build=1 in="${trim_folder}${f}_trimmed.fq.gz" ref_human="$genome_human" ref_mouse="$genome_mouse" basename="${collapsed_folder}${f}_out%.fq.gz" scafstats="${collapsed_folder}${f}_scaf.txt" refstats="${collapsed_folder}${f}_ref.txt" path="$collapsed_folder" ambiguous2=toss
         mv "${collapsed_folder}${f}_outhuman.fq.gz" "${collapsed_folder}${f}_cleaned.fq.gz"
     fi
@@ -144,6 +158,8 @@ function ribo_data_pipeline {
     fi
 
     # Remove noncoding RNA using a custom script
+    #Step 4 trimming
+    echo " *** Start Step 4 mapping to noncodingRNA for $f ***"
 
 
     STAR --runThreadN 4 \
@@ -171,6 +187,8 @@ function ribo_data_pipeline {
        
     else
         # Remove mouse reads based on a custom reference
+        #Step 5 
+        echo " *** Start Step 5 mapping to mouse riboseq reference for $f ***"
 
         STAR --runThreadN 4 \
             --genomeDir  ${ribo_mouse_ref} \
@@ -202,6 +220,9 @@ function ribo_data_pipeline {
         echo "Directory created: $human_mapping_folder"
     fi
 
+    #Step 6 
+    echo " *** Start Step 6 mapping to human genome for $f ***"
+
     STAR --runThreadN 4 \
         --genomeDir ${Gencode_Mane} \
         --readFilesIn "${mapping_folder}clean_${f}".fq.gz \
@@ -226,7 +247,7 @@ function ribo_data_pipeline {
 
 # Parallelize the ribo_data_pipeline function calls
 #export -f ribo_data_pipeline
-#find "$raw_data_directory" -type f -name "*.fastq.gz" | parallel ribo_data_pipeline
+#find "$raw_data_directory" -type f -name "*.fastq.gz" | parallel ribo_data_pipeline "{}"
 
 
 for file in ${raw_data_directory}*.fastq.gz; do
@@ -241,6 +262,10 @@ source activate bulkrnaseq
 human_mapping_folder="${raw_data_directory}trimmed/collapsed/mapped/human_mapped"
 
 if [ "$AIM_OPTION" == "RNA_CELL" ] || [ "$AIM_OPTION" == "RNA_PDX" ]; then 
+
+    #Step 7 
+    echo " *** Start Step 7 featurecounts for $f ***"
+
     featureCounts -t CDS -g gene_id -O -s 0 -a "${MANE_annot}" -o "${human_mapping_folder}/CDS_RNA_counts_not_strand.txt" "${human_mapping_folder}"/*Aligned.sortedByCoord.out.bam
 fi
 
