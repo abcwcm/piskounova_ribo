@@ -72,8 +72,8 @@ rownames(RIBO_counts) <- RIBO_counts$gene_name
 ```{r, echo=F, message=F, warning=F}
 RIBO_counts <- RIBO_counts %>% dplyr::select(gene_name, contains("_mapped_"))
 RIBO_counts$gene_name <- NULL
-names(RIBO_counts) <- sapply(strsplit(names(RIBO_counts), "_outhuman.fq.gzUnmapped.out.mate1.fq.gzUnmapped.out.mate1.gzAligned.toTranscriptome.out"), "[", 1)
-names(RIBO_counts) <- sapply(strsplit(names(RIBO_counts), "mapped_mapped_mapped_"), "[", 2)
+names(RIBO_counts) <- sapply(strsplit(names(RIBO_counts), "_Aligned.toTranscriptome.out"), "[", 1)
+names(RIBO_counts) <- sapply(strsplit(names(RIBO_counts), "human_mapped_"), "[", 2)
 names(RIBO_counts) <- paste0("RIBO_seq_",names(RIBO_counts))
 ```
 
@@ -91,8 +91,8 @@ RNA_counts <- RNA_counts %>% dplyr::select(gene_name, contains("_mapped_"))
 rownames(RNA_counts) <- RNA_counts$gene_name
 
 RNA_counts$gene_name <- NULL
-names(RNA_counts) <- sapply(strsplit(names(RNA_counts), "_outhuman.fq.gzUnmapped.out.mate1.fq.gzUnmapped.out.mate1.gzAligned.sortedByCoord.out.bam"), "[", 1)
-names(RNA_counts) <- sapply(strsplit(names(RNA_counts), "mapped_mapped_mapped_"), "[", 2)
+names(RNA_counts) <- sapply(strsplit(names(RNA_counts), "_Aligned.sortedByCoord.out.bam"), "[", 1)
+names(RNA_counts) <- sapply(strsplit(names(RNA_counts), "human_mapped_"), "[", 2)
 
 names(RNA_counts) <- paste0("RNA_seq_",names(RNA_counts))
 ```

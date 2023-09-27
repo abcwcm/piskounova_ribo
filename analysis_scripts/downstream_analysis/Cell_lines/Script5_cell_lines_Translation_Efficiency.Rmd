@@ -71,8 +71,8 @@ RIBO_counts = RIBO_counts[!duplicated(RIBO_counts$gene_name),]
 rownames(RIBO_counts) <- RIBO_counts$gene_name
 RIBO_counts <- RIBO_counts %>% dplyr::select(gene_name, contains("trimmed"))
 RIBO_counts$gene_name <- NULL
-names(RIBO_counts) <- sapply(strsplit(names(RIBO_counts), "_trimmed.c.tag"), "[", 1)
-names(RIBO_counts) <- sapply(strsplit(names(RIBO_counts), "mapped_non_coding_"), "[", 2)
+names(RIBO_counts) <- sapply(strsplit(names(RIBO_counts), "_Aligned.toTranscriptome.out"), "[", 1)
+names(RIBO_counts) <- sapply(strsplit(names(RIBO_counts), "human_mapped_"), "[", 2)
 ```
 
 ```{r, echo=F, message=F, warning=F}
@@ -88,8 +88,8 @@ RNA_counts <- RNA_counts %>% dplyr::select(gene_name, contains("trimmed"))
 rownames(RNA_counts) <- RNA_counts$gene_name
 
 RNA_counts$gene_name <- NULL
-names(RNA_counts) <- sapply(strsplit(names(RNA_counts), "_trimmed.bam"), "[", 1)
-names(RNA_counts) <- sapply(strsplit(names(RNA_counts), "mapped_non_coding_"), "[", 2)
+names(RNA_counts) <- sapply(strsplit(names(RNA_counts), "_Aligned.sortedByCoord.out.bam"), "[", 1)
+names(RNA_counts) <- sapply(strsplit(names(RNA_counts), "human_mapped_"), "[", 2)
 ```
 
 ```{r, echo=F, message=F, warning=F}

@@ -66,8 +66,8 @@ for (i in selenoprot){
   seleno_reads <- lapply(seleno_reads, function(df) df[psite_from_start %% 3 == 0])
   for(samples in names(seleno_reads)){
     sub_seleno_reads <- seleno_reads[[samples]] %>% dplyr::select(transcript, psite)
-    samples <- str_split(samples, "_outhuman.fq.gzUnmapped.out.mate1.fq.gzUnmapped.out.mate1.gzAligned.toTranscriptome.out")[[1]][1]
-    samples <- str_split(samples,"mapped_mapped_mapped_")[[1]][2]
+    samples <- str_split(samples, "_Aligned.toTranscriptome")[[1]][1]
+    samples <- str_split(samples,"human_mapped_")[[1]][2]
     coverage_table <- sub_seleno_reads %>% 
       group_by(transcript,psite) %>% 
       summarize(count = n()) %>% 
@@ -152,8 +152,8 @@ pdf(file = paste0(output_folder,
  dev.off()
  values <- as.data.frame(codon_usage_barplot[["dt"]])
  name<-paste0(i)
-  name <- str_split(name, "_outhuman.fq.gzUnmapped.out.mate1.fq.gzUnmapped.out.mate1.gzAligned.toTranscriptome.out")[[1]][1]
-  name <- str_split(name,"mapped_mapped_mapped_")[[1]][2]
+  name <- str_split(name, "_Aligned.toTranscriptome.out")[[1]][1]
+  name <- str_split(name,"human_mapped_")[[1]][2]
  values <- values %>% dplyr::select(codon,plot_value)
  values <- values %>% dplyr::rename(!!paste0(name):=plot_value)
  scatter_data_frame_p_transcripts <- join(scatter_data_frame_p_transcripts,values,by="codon",type="full")
@@ -252,8 +252,8 @@ pdf(file = paste0(output_folder,
  write.table(values, paste0(output_folder,
                   i, "_psite_codon_usage.csv"), quote = F, sep = "," )
  name<-paste0(i)
-  name <- str_split(name, "_outhuman.fq.gzUnmapped.out.mate1.fq.gzUnmapped.out.mate1.gzAligned.toTranscriptome.out")[[1]][1]
-  name <- str_split(name,"mapped_mapped_mapped_")[[1]][2]
+  name <- str_split(name, "_Aligned.toTranscriptome.out")[[1]][1]
+  name <- str_split(name,"human_mapped_")[[1]][2]
   values <- values %>% dplyr::select(codon,plot_value)
  values <- values %>% dplyr::rename(!!paste0(name):=plot_value)
  scatter_data_frame_p_seleno <- join(scatter_data_frame_p_seleno,values,by="codon",type="full")

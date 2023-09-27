@@ -1,41 +1,27 @@
 #!/bin/bash
 
-# Set up raw data
-raw_data_directory=""
-genome_human=/local/storage/maa7095/references/human/gencode_primary/GRCh38.primary_assembly.genome.fa
-genome_mouse=/local/storage/maa7095/references/mouse/GRCm39/GRCm39.primary_assembly.genome.fa
-non_coding_folder=/local/storage/maa7095/references/human/non_coding
-ribo_mouse_ref=/SSD/maa7095/RIBOseq/Shino_new_analysis/Xenograft/trimmed_out/ambioguos_mouse/ribo_xeno_ref/trimmed_out
-MANE_annot=/local/storage/maa7095/references/human/gencode_primary/MANE_ref/MANE.GRCh38.v1.2.ensembl_genomic.gtf
-Gencode_Mane=/local/storage/maa7095/references/human/gencode_primary/MANE_ref
-
 # Define allowed AIM values
 ALLOWED_AIM=("RIBO_CELL" "RIBO_PDX" "RNA_CELL" "RNA_PDX")
 
 # Function to display usage instructions
 show_usage() {
-    echo "Usage: $0 --aim <AIM_OPTION> [OPTIONS]"
+    echo "Usage: $0 --config <CONFIG_FILE> --aim <AIM_OPTION> [OPTIONS]"
     echo "Options:"
+    echo "  --config <CONFIG_FILE>: Specify a custom configuration file."
+    echo "  --aim <AIM_OPTION>: Specify the AIM option."
     echo "  --raw-data-dir <RAW_DATA_DIR>: Specify the raw data directory."
     echo "Available AIM options: ${ALLOWED_AIM[*]}"
     exit 1
-}
-
-# Check if the provided --aim option is valid
-validate_aim() {
-    local aim="$1"
-    for valid_aim in "${ALLOWED_AIM[@]}"; do
-        if [ "$aim" == "$valid_aim" ]; then
-            return 0  # Valid AIM
-        fi
-    done
-    return 1  # Invalid AIM
 }
 
 # Process command-line arguments
 while [[ $# -gt 0 ]]; do
     key="$1"
     case $key in
+        --config)
+            config_file="$2"
+            shift
+            ;;
         --aim)
             AIM_OPTION="$2"
             shift
@@ -51,12 +37,30 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
-# Validate AIM option
-validate_aim "$AIM_OPTION"
-if [ $? -ne 0 ]; then
-    echo "Error: Invalid --aim option. Please choose one of the following options: ${ALLOWED_AIM[*]}"
+# Check if a configuration file was provided
+if [ -z "$config_file" ]; then
+    echo "Error: Please specify a custom configuration file using the --config option."
+    show_usage
+fi
+
+# Include the specified configuration file
+if [ -f "$config_file" ]; then
+    source "$config_file"
+else
+    echo "Error: The specified configuration file '$config_file' does not exist."
     exit 1
 fi
+
+# Validate AIM option
+validate_aim() {
+    local aim="$1"
+    for valid_aim in "${ALLOWED_AIM[@]}"; do
+        if [ "$aim" == "$valid_aim" ]; then
+            return 0  # Valid AIM
+        fi
+    done
+    return 1  # Invalid AIM
+}
 
 # Check for required options
 if [ -z "$raw_data_directory" ] ; then
@@ -64,8 +68,19 @@ if [ -z "$raw_data_directory" ] ; then
     show_usage
 fi
 
-# Rest of your script here...
-# Command 1: Trim Galore
+
+# Access the genome_human variable from the config file
+echo "genome_human is set to: $genome_human"
+echo "mouse genome is set to: $genome_mouse"
+echo "noncoding RNA refernece is set to: $non_coding_folder"
+echo "mouse riboseq reference is set to: $ribo_mouse_ref"
+echo "annotation file is set to: $MANE_annot"
+echo "indexed genome refernece is set to: $Gencode_Mane"
+
+
+
+
+# Start with the pipeline
 function ribo_data_pipeline {
     local file="$1"
     local sample_name
