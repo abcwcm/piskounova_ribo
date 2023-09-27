@@ -199,7 +199,7 @@ function ribo_data_pipeline {
 
     wait
 
-    if [ "$AIM_OPTION" == "RIBO_CELL" ]; then
+    if [ "$AIM_OPTION" != "RIBO_PDX" ]; then
         mv "${mapping_folder}non_coding_${f}_"Unmapped.out.mate1.gz "${mapping_folder}clean_${f}".fq.gz
        
     else
