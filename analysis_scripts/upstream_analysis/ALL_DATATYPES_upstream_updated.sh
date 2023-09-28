@@ -130,10 +130,13 @@ function ribo_data_pipeline {
         echo " *** Start Step 2 PCR duplicates removal for $f ***"
 
         fastq2collapse.pl "${trim_folder}${f}_trimmed.fq.gz" - | gzip -c > "${collapsed_folder}${f}_trimmed.c.fq.gz"
+        wait
         stripBarcode.pl -format fastq -len 8 "${collapsed_folder}${f}_trimmed.c.fq.gz" - | gzip -c > "${collapsed_folder}${f}_trimmed.c.tag.fq.gz"
 
         conda deactivate 
         source activate bulkrnaseq
+
+        wait
 
         if [ "$AIM_OPTION" == "RIBO_CELL" ]; then
             mv "${collapsed_folder}${f}_trimmed.c.tag.fq.gz" "${collapsed_folder}${f}_cleaned.fq.gz"
@@ -143,8 +146,10 @@ function ribo_data_pipeline {
             echo " *** Start Step 3 removing mouse reads for $f ***"
 
             bbsplit.sh build=1 in="${collapsed_folder}${f}_trimmed.c.tag.fq.gz" ref_human="$genome_human" ref_mouse="$genome_mouse" basename="${collapsed_folder}${f}_out%.fq.gz" scafstats="${collapsed_folder}${f}_scaf.txt" refstats="${collapsed_folder}${f}_ref.txt" path="$collapsed_folder" ambiguous2=toss
+            wait
             mv "${collapsed_folder}${f}_outhuman.fq.gz" "${collapsed_folder}${f}_cleaned.fq.gz"
         fi
+        wait
 
         
     fi
@@ -157,6 +162,7 @@ function ribo_data_pipeline {
         #Step 3 trimming
         echo " *** Start Step 3 removing mouse reads for $f ***"
         bbsplit.sh build=1 in="${trim_folder}${f}_trimmed.fq.gz" ref_human="$genome_human" ref_mouse="$genome_mouse" basename="${collapsed_folder}${f}_out%.fq.gz" scafstats="${collapsed_folder}${f}_scaf.txt" refstats="${collapsed_folder}${f}_ref.txt" path="$collapsed_folder" ambiguous2=toss
+        wait
         mv "${collapsed_folder}${f}_outhuman.fq.gz" "${collapsed_folder}${f}_cleaned.fq.gz"
     fi
     wait
@@ -164,6 +170,8 @@ function ribo_data_pipeline {
     if [ "$AIM_OPTION" == "RNA_CELL" ]; then
         mv "${trim_folder}${f}_trimmed.fq.gz" "${collapsed_folder}${f}_cleaned.fq.gz"
     fi
+
+    wait
 
     # Run mapping to noncoding reference
     mapping_folder="${collapsed_folder}mapped/"
@@ -203,6 +211,8 @@ function ribo_data_pipeline {
         mv "${mapping_folder}non_coding_${f}_"Unmapped.out.mate1.gz "${mapping_folder}clean_${f}".fq.gz
        
     else
+
+    wait
         # Remove mouse reads based on a custom reference
         #Step 5 
         echo " *** Start Step 5 mapping to mouse riboseq reference for $f ***"
@@ -226,6 +236,7 @@ function ribo_data_pipeline {
             --sjdbGTFfile -
 
     gzip "${mapping_folder}non_coding_ribo_mouse_${f}_"Unmapped.out.mate1
+    wait
     mv "${mapping_folder}non_coding_ribo_mouse_${f}_"Unmapped.out.mate1.gz "${mapping_folder}clean_${f}".fq.gz
     fi
 
@@ -262,6 +273,7 @@ function ribo_data_pipeline {
         --outSAMattributes Standard
 
     echo "Processed: $file"
+
 }
 
 # Parallelize the ribo_data_pipeline function calls
