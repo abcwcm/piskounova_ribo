@@ -132,15 +132,20 @@ function ribo_data_pipeline {
         fastq2collapse.pl "${trim_folder}${f}_trimmed.fq.gz" - | gzip -c > "${collapsed_folder}${f}_trimmed.c.fq.gz"
         wait
         stripBarcode.pl -format fastq -len 8 "${collapsed_folder}${f}_trimmed.c.fq.gz" - | gzip -c > "${collapsed_folder}${f}_trimmed.c.tag.fq.gz"
-
-        conda deactivate 
-        source activate bulkrnaseq
-
         wait
 
+        conda deactivate 
+        
+
+        
+
         if [ "$AIM_OPTION" == "RIBO_CELL" ]; then
+            eval "$(conda shell.bash hook)"
+            source activate bulkrnaseq
             mv "${collapsed_folder}${f}_trimmed.c.tag.fq.gz" "${collapsed_folder}${f}_cleaned.fq.gz"
-        else
+        elif [ "$AIM_OPTION" == "RIBO_PDX" ]; then
+            eval "$(conda shell.bash hook)"
+            source activate bulkrnaseq
 
             #Step 3 trimming
             echo " *** Start Step 3 removing mouse reads for $f ***"
@@ -154,8 +159,6 @@ function ribo_data_pipeline {
         
     fi
     wait
-
-    source activate bulkrnaseq
 
     if [ "$AIM_OPTION" == "RNA_PDX" ]; then
 
@@ -212,7 +215,7 @@ function ribo_data_pipeline {
        
     else
 
-    wait
+    
         # Remove mouse reads based on a custom reference
         #Step 5 
         echo " *** Start Step 5 mapping to mouse riboseq reference for $f ***"
@@ -235,9 +238,10 @@ function ribo_data_pipeline {
             --outWigType None \
             --sjdbGTFfile -
 
-    gzip "${mapping_folder}non_coding_ribo_mouse_${f}_"Unmapped.out.mate1
-    wait
-    mv "${mapping_folder}non_coding_ribo_mouse_${f}_"Unmapped.out.mate1.gz "${mapping_folder}clean_${f}".fq.gz
+        gzip "${mapping_folder}non_coding_ribo_mouse_${f}_"Unmapped.out.mate1
+    
+        mv "${mapping_folder}non_coding_ribo_mouse_${f}_"Unmapped.out.mate1.gz "${mapping_folder}clean_${f}".fq.gz
+    
     fi
 
     wait
@@ -276,9 +280,12 @@ function ribo_data_pipeline {
 
 }
 
-# Parallelize the ribo_data_pipeline function calls
-#export -f ribo_data_pipeline
-#find "$raw_data_directory" -type f -name "*.fastq.gz" | parallel ribo_data_pipeline "{}"
+# Create a function for processing a single file
+process_single_file() {
+    local file="$1"
+    ribo_data_pipeline "$file"
+}
+
 
 
 for file in ${raw_data_directory}*.fastq.gz; do
