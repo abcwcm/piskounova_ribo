@@ -15,15 +15,14 @@ Scripts related to the analysis of RIBO-seq and bulkRNA-seq data of FTSJ1 KO cel
 
 
 ## UPSTREAM ANALYSIS
+Upstream analysis can be performed following [ALL_DATATYPES_upstream.sh](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/upstream_analysis/ALL_DATATYPES_upstream_updated.sh) script. It is written to analyze four different data types; Cell line RIBO-seq, PDX RIBO-seq, Cell line RNA-seq and PDX RNA-seq. In order to run it, reference files has to be set in config.txt file and aim and raw data folder have to be set in the command line. The script works as follows;
 
-The script to run all upstream steps is found in [ALL_DATATYPES_upstream.sh](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/upstream_analysis/ALL_DATATYPES_upstream_updated.sh). It needs a configuration file where all the necessary reference and annotation files will be pointed. The script works as follows;
-
-    > `./ALL_DATATYPES_upstream.sh --aim RIBO_CELL|RIBO_PDX|RNA_CELL|RNA_PDX --config config.yml  --raw-data-dir data_directory_path`
+    > `./ALL_DATATYPES_upstream.sh --aim RIBO_CELL|RIBO_PDX|RNA_CELL|RNA_PDX --config config.txt  --raw-data-dir data_directory_path`
 
 Example:
 
 
-    >`./ALL_DATATYPES_upstream_updated.sh --aim RIBO_CELL --config config.yml --raw-data-dir test_Data/ribo_cell/`
+    >`./ALL_DATATYPES_upstream_updated.sh --aim RIBO_CELL --config config.txt --raw-data-dir test_Data/ribo_cell/`
 
 - **Step 1**. Reads from bulk RNA-seq and RIBO-seq libraries from cell lines were trimmed using `Trim Galore` v0.6.10 to remove nucleotides with low quality and adaptor contamination.
 
