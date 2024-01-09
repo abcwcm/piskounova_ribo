@@ -15,7 +15,7 @@ Schematic description of the data processing workflow.
 
 
 ## UPSTREAM ANALYSIS
-Upstream analysis can be performed using the [ALL_DATATYPES_upstream.sh](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/upstream_analysis/ALL_DATATYPES_upstream_updated.sh) script. It is written to analyze four different experimental types; Cell line RIBO-seq, PDX RIBO-seq, Cell line RNA-seq and PDX RNA-seq. In order to run it, reference files have to be set in config.txt file and aim and raw data folder have to be set in the command line. The script works as follows;
+Upstream analysis can be performed using the [ALL_DATATYPES_upstream.sh](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/upstream_analysis/ALL_DATATYPES_upstream_updated.sh) script. It is written to analyze four different experimental types; Cell line RIBO-seq, PDX RIBO-seq, Cell line RNA-seq and PDX RNA-seq. In order to run it, reference files have to be set in config.txt file and aim and raw data folder have to be set in the command line. For the Raw data we need to specify the whole path plus the last "/". The script works as follows;
 
     > `./ALL_DATATYPES_upstream.sh --aim RIBO_CELL|RIBO_PDX|RNA_CELL|RNA_PDX --config config.txt  --raw-data-dir <data_directory_path>`
 
