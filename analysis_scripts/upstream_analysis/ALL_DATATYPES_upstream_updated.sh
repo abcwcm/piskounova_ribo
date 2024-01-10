@@ -162,6 +162,8 @@ function ribo_data_pipeline {
 
     if [ "$AIM_OPTION" == "RNA_PDX" ]; then
 
+        source activate bulkrnaseq
+
         #Step 3 trimming
         echo " *** Start Step 3 removing mouse reads for $f ***"
         bbsplit.sh build=1 in="${trim_folder}${f}_trimmed.fq.gz" ref_human="$genome_human" ref_mouse="$genome_mouse" basename="${collapsed_folder}${f}_out%.fq.gz" scafstats="${collapsed_folder}${f}_scaf.txt" refstats="${collapsed_folder}${f}_ref.txt" path="$collapsed_folder" ambiguous2=toss
