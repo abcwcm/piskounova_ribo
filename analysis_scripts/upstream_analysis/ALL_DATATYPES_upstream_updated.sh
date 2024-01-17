@@ -72,10 +72,10 @@ fi
 # Access the genome_human variable from the config file
 echo "genome_human is set to: $genome_human"
 echo "mouse genome is set to: $genome_mouse"
-echo "noncoding RNA refernece is set to: $non_coding_folder"
+echo "noncoding RNA reference is set to: $non_coding_folder"
 echo "mouse riboseq reference is set to: $ribo_mouse_ref"
 echo "annotation file is set to: $MANE_annot"
-echo "indexed genome refernece is set to: $Gencode_Mane"
+echo "indexed genome reference is set to: $Gencode_Mane"
 
 
 
@@ -135,7 +135,6 @@ function ribo_data_pipeline {
         wait
 
         conda deactivate 
-        
 
         
 
@@ -143,6 +142,7 @@ function ribo_data_pipeline {
             eval "$(conda shell.bash hook)"
             source activate bulkrnaseq
             mv "${collapsed_folder}${f}_trimmed.c.tag.fq.gz" "${collapsed_folder}${f}_cleaned.fq.gz"
+
         elif [ "$AIM_OPTION" == "RIBO_PDX" ]; then
             eval "$(conda shell.bash hook)"
             source activate bulkrnaseq
@@ -154,20 +154,20 @@ function ribo_data_pipeline {
             wait
             mv "${collapsed_folder}${f}_outhuman.fq.gz" "${collapsed_folder}${f}_cleaned.fq.gz"
         fi
-        wait
-
-        
     fi
-    wait
+
 
     if [ "$AIM_OPTION" == "RNA_PDX" ]; then
-
-        source activate bulkrnaseq
-
+	    source activate bulkrnaseq
         #Step 3 trimming
         echo " *** Start Step 3 removing mouse reads for $f ***"
-        bbsplit.sh build=1 in="${trim_folder}${f}_trimmed.fq.gz" ref_human="$genome_human" ref_mouse="$genome_mouse" basename="${collapsed_folder}${f}_out%.fq.gz" scafstats="${collapsed_folder}${f}_scaf.txt" refstats="${collapsed_folder}${f}_ref.txt" path="$collapsed_folder" ambiguous2=toss
-        wait
+        bbsplit.sh build=1 in="${trim_folder}${f}_trimmed.fq.gz" ref_human="$genome_human" ref_mouse="$genome_mouse" basename="${collapsed_folder}${f}_out%.fq.gz" scafstats="${collapsed_folder}${f}_scaf.txt" refstats="${collapsed_folder}${f}_ref.txt" path="$collapsed_folder" ambiguous2=toss -Xmx200g &
+        # Capture the process ID of the background job
+        bbsplit_pid=$!
+    
+        # Wait for the background job to finish
+        wait "$bbsplit_pid"
+        #wait
         mv "${collapsed_folder}${f}_outhuman.fq.gz" "${collapsed_folder}${f}_cleaned.fq.gz"
     fi
     wait
