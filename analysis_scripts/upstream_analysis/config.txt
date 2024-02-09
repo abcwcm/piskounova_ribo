@@ -1,6 +1,5 @@
 genome_human=/local/storage/maa7095/references/human/gencode_primary/GRCh38.primary_assembly.genome.fa
 genome_mouse=/local/storage/maa7095/references/mouse/GRCm39/GRCm39.primary_assembly.genome.fa
 non_coding_folder=/local/storage/maa7095/references/human/non_coding
-ribo_mouse_ref=/SSD/maa7095/RIBOseq/Shino_new_analysis/Xenograft/trimmed_out/ambioguos_mouse/ribo_xeno_ref/trimmed_out
 MANE_annot=/local/storage/maa7095/references/human/gencode_primary/MANE_ref/MANE.GRCh38.v1.2.ensembl_genomic.gtf
 Gencode_Mane=/local/storage/maa7095/references/human/gencode_primary/MANE_ref

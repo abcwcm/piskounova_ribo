@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define allowed AIM values
-ALLOWED_AIM=("RIBO_CELL" "RIBO_PDX" "RNA_CELL" "RNA_PDX")
+ALLOWED_AIM=("RIBO_CELL" "RNA_PDX")
 
 # Function to display usage instructions
 show_usage() {
@@ -73,7 +73,6 @@ fi
 echo "genome_human is set to: $genome_human"
 echo "mouse genome is set to: $genome_mouse"
 echo "noncoding RNA reference is set to: $non_coding_folder"
-echo "mouse riboseq reference is set to: $ribo_mouse_ref"
 echo "annotation file is set to: $MANE_annot"
 echo "indexed genome reference is set to: $Gencode_Mane"
 
@@ -121,10 +120,10 @@ function ribo_data_pipeline {
 
     
 
-    if [ "$AIM_OPTION" == "RIBO_CELL" ] || [ "$AIM_OPTION" == "RIBO_PDX" ]; then 
+    if [ "$AIM_OPTION" == "RIBO_CELL" ] ; then 
         eval "$(conda shell.bash hook)"
         source activate ctk_duplicates
-        # Just for RIBO_CELL and RIBO_PDX
+        # Just for RIBO_CELL 
 
         #Step 2 trimming
         echo " *** Start Step 2 PCR duplicates removal for $f ***"
@@ -135,25 +134,10 @@ function ribo_data_pipeline {
         wait
 
         conda deactivate 
-
+        eval "$(conda shell.bash hook)"
+        source activate bulkrnaseq
+        mv "${collapsed_folder}${f}_trimmed.c.tag.fq.gz" "${collapsed_folder}${f}_cleaned.fq.gz"
         
-
-        if [ "$AIM_OPTION" == "RIBO_CELL" ]; then
-            eval "$(conda shell.bash hook)"
-            source activate bulkrnaseq
-            mv "${collapsed_folder}${f}_trimmed.c.tag.fq.gz" "${collapsed_folder}${f}_cleaned.fq.gz"
-
-        elif [ "$AIM_OPTION" == "RIBO_PDX" ]; then
-            eval "$(conda shell.bash hook)"
-            source activate bulkrnaseq
-
-            #Step 3 trimming
-            echo " *** Start Step 3 removing mouse reads for $f ***"
-
-            bbsplit.sh build=1 in="${collapsed_folder}${f}_trimmed.c.tag.fq.gz" ref_human="$genome_human" ref_mouse="$genome_mouse" basename="${collapsed_folder}${f}_out%.fq.gz" scafstats="${collapsed_folder}${f}_scaf.txt" refstats="${collapsed_folder}${f}_ref.txt" path="$collapsed_folder" ambiguous2=toss
-            wait
-            mv "${collapsed_folder}${f}_outhuman.fq.gz" "${collapsed_folder}${f}_cleaned.fq.gz"
-        fi
     fi
 
 
@@ -169,11 +153,6 @@ function ribo_data_pipeline {
         wait "$bbsplit_pid"
         #wait
         mv "${collapsed_folder}${f}_outhuman.fq.gz" "${collapsed_folder}${f}_cleaned.fq.gz"
-    fi
-    wait
-
-    if [ "$AIM_OPTION" == "RNA_CELL" ]; then
-        mv "${trim_folder}${f}_trimmed.fq.gz" "${collapsed_folder}${f}_cleaned.fq.gz"
     fi
 
     wait
@@ -212,43 +191,9 @@ function ribo_data_pipeline {
 
     wait
 
-    if [ "$AIM_OPTION" != "RIBO_PDX" ]; then
-        mv "${mapping_folder}non_coding_${f}_"Unmapped.out.mate1.gz "${mapping_folder}clean_${f}".fq.gz
-       
-    else
+    mv "${mapping_folder}non_coding_${f}_"Unmapped.out.mate1.gz "${mapping_folder}clean_${f}".fq.gz
 
-    
-        # Remove mouse reads based on a custom reference
-        #Step 5 
-        echo " *** Start Step 5 mapping to mouse riboseq reference for $f ***"
-
-        STAR --runThreadN 4 \
-            --genomeDir  ${ribo_mouse_ref} \
-            --readFilesIn "${mapping_folder}non_coding_${f}_"Unmapped.out.mate1.gz \
-            --readFilesCommand zcat \
-            --outFileNamePrefix "${mapping_folder}non_coding_ribo_mouse_${f}_" \
-            --outSAMtype BAM SortedByCoordinate \
-            --quantMode - \
-            --outReadsUnmapped Fastx \
-            --alignIntronMax 1 \
-            --outFilterMultimapNmax 20 \
-            --limitBAMsortRAM 3726878714 \
-            --alignEndsType EndToEnd \
-            --winAnchorMultimapNmax 100 \
-            --seedSearchStartLmax 20 \
-            --sjdbOverhang 43 \
-            --outWigType None \
-            --sjdbGTFfile -
-
-        gzip "${mapping_folder}non_coding_ribo_mouse_${f}_"Unmapped.out.mate1
-    
-        mv "${mapping_folder}non_coding_ribo_mouse_${f}_"Unmapped.out.mate1.gz "${mapping_folder}clean_${f}".fq.gz
-    
-    fi
-
-    wait
-
-    # Third STAR Mapping to mapp to Human Genome
+    # Second STAR Mapping to mapp to Human Genome
 
     human_mapping_folder="${mapping_folder}human_mapped/"
     if [ ! -d "$human_mapping_folder" ]; then
@@ -256,8 +201,8 @@ function ribo_data_pipeline {
         echo "Directory created: $human_mapping_folder"
     fi
 
-    #Step 6 
-    echo " *** Start Step 6 mapping to human genome for $f ***"
+    #Step 5 
+    echo " *** Start Step 5 mapping to human genome for $f ***"
 
     STAR --runThreadN 4 \
         --genomeDir ${Gencode_Mane} \
@@ -303,10 +248,10 @@ human_mapping_folder="${raw_data_directory}trimmed/collapsed/mapped/human_mapped
 
 cd "$human_mapping_folder"
 
-if [ "$AIM_OPTION" == "RNA_CELL" ] || [ "$AIM_OPTION" == "RNA_PDX" ]; then 
+if [ "$AIM_OPTION" == "RNA_PDX" ]; then 
 
-    #Step 7 
-    echo " *** Start Step 7 featurecounts for $f ***"
+    #Step 6 
+    echo " *** Start Step 6 featurecounts for $f ***"
 
     featureCounts -t CDS -g gene_id -O -s 0 -a "${MANE_annot}" -o CDS_RNA_counts_not_strand.txt *Aligned.sortedByCoord.out.bam
 fi

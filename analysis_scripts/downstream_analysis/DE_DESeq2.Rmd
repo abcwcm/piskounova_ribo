@@ -1,0 +1,363 @@
+---
+title: "Script for differential expression analysis from PDX data by Nease et al. **Step 7**"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    highlight: tango
+    df_print: paged
+    toc: yes
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+    toc_depth: 3
+    code_folding: hide
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message=FALSE, warning=FALSE, result='hold',fig.width=10,tidy=TRUE, cache=FALSE)
+knitr::opts_knit$set(progress=TRUE,verbose=TRUE)
+```
+
+```{r, echo=FALSE, message=FALSE}
+#Load libraries.
+library(PCAtools)
+library(DESeq2) #1.28.1
+library(dplyr) #1.0.2
+library(openxlsx) #4.2.3
+library(plyr) #1.8.6
+library(RColorBrewer)
+library(stringr)
+library(ggplot2); theme_set(theme_bw(base_size = 20))
+library(pheatmap)
+library(RColorBrewer)
+library(VennDiagram)
+library(tidyr)
+library(biomaRt)
+```
+
+## Data QC {.tabset}
+
+
+```{r}
+#add condition of each sample type.
+metadata <- read.xlsx("metadata_bulkrnaseq_PDX.xlsx", rowNames = F)
+metadata$Type <-factor(metadata$Type, levels = c("Primary","Macro", "Micro"))
+metadata$Patient <-factor(metadata$Patient, levels = c("M405","M481"))
+metadata <- metadata %>% dplyr::rename(ID=Name)
+```
+
+### Summary of the samples in the analysis.
+
+```{r}
+as_tibble(metadata)
+```
+
+
+
+```{r}
+#Load counts obtain by FeatureCounts.
+feature_1 <- read.csv("/SSD/maa7095/RIBOseq/PDX_RNA_analysis_2024/DE_PDX_RNA/CDS_RNA_counts_not_strand.txt", sep = "\t")
+feature_2 <- read.csv("/SSD/maa7095/RIBOseq/PDX_RNA_analysis_2024/DE_PDX_RNA/subset_CDS_RNA_counts_not_strand_xeno.txt", sep = "\t")
+#subset to only count matrix
+feature_counts <- join(feature_1, feature_2, type="inner")
+rownames(feature_counts) <- feature_counts$Geneid
+raw_mat <- feature_counts[7:24]
+colnames(raw_mat) <- str_extract(colnames(raw_mat), "EP_[0-9]*")
+```
+
+
+```{r}
+#Check that names in the count file and metadata are the same.
+rownames(metadata) <- metadata$ID
+all(colnames(raw_mat) == rownames(metadata))
+
+#order the matrix based on the metadata order.
+raw_mat <- raw_mat[,rownames(metadata)]
+all(colnames(raw_mat) == rownames(metadata))
+```
+
+```{r}
+#save raw data
+write.csv(raw_mat, "PDX_raw_counts.csv", quote = F)
+```
+
+
+
+```{r, echo=F, message=F}
+#Create DESeq object. 
+dds_all_data <- DESeqDataSetFromMatrix(countData = raw_mat,
+                              colData = metadata,
+                              design = ~ Patient + Type)
+dds_all_data <- estimateSizeFactors(dds_all_data)
+
+```
+
+```{r}
+keep <- rowSums(counts(dds_all_data) >= 10) >= 2
+dds_all_data <- dds_all_data[keep,]
+```
+
+```{r, echo=F, message=F}
+#Run Deseq and save normalized counts.
+dds_all_data <- DESeq(dds_all_data)
+normalized_counts <- counts(dds_all_data,normalized=TRUE)
+vsd <- DESeq2::vst(dds_all_data, blind = TRUE)
+log_normCounts = assay(vsd)
+```
+
+
+```{r, echo=F, message=F}
+rld <- rlog( dds_all_data, blind=FALSE)
+rld_mat <- assay(rld)
+rld_cor <- cor(rld_mat)
+```
+
+## Samples correlation results {.tabset}
+
+### Correlation
+```{r}
+cor_plot <- pheatmap(rld_cor, labels_row=colData(dds_all_data)$replicate, labels_col=colData(dds_all_data)$replicate, fontsize_row = 8, fontsize_col = 8)
+print(cor_plot)
+```
+
+
+### All samples PCA
+```{r}
+#First lets plot all of them. Then subset by system.
+condition_pca_all <- plotPCA(rld, intgroup=c("Patient", "Type"))
+pca_colors <- as.factor(condition_pca_all[["data"]]$group)
+ggplot(condition_pca_all[["data"]], aes(x = PC1, y = PC2, color = interaction(Patient, Type))) +
+  geom_point(size=5) +
+  scale_color_manual(values = c("M405.Primary" = "seagreen", "M405.Macro" = "magenta1", "M405.Micro" = "dodgerblue", "M481.Primary" = "palegreen2", "M481.Macro" = "maroon2","M481.Micro" = "royalblue3")) + labs(y=condition_pca_all[["labels"]]$y , x = condition_pca_all[["labels"]]$x )
+```
+
+PCA analysis show a big separation/effect between the samples coming from different patients M405,M481.
+
+### Just Patient M405
+```{r}
+sub_m405 <- metadata %>% filter(Patient=="M405")
+sub_rld_m405 <- rld[,sub_m405$ID]
+#First lets plot all of them. Then subset by system.
+condition_pca_all_m405 <- plotPCA(sub_rld_m405, intgroup="Type")
+ggplot(condition_pca_all_m405[["data"]], aes(x = PC1, y = PC2, color = Type)) +
+  geom_point(size=5) +
+  scale_color_manual(values = c("Primary" = "seagreen", "Macro" = "magenta1", "Micro" = "dodgerblue")) + labs(y=condition_pca_all_m405[["labels"]]$y , x = condition_pca_all_m405[["labels"]]$x ) + ggtitle("Data from patient M405")
+
+```
+
+
+### Just Patient M481
+
+```{r}
+sub_m481 <- metadata %>% filter(Patient=="M481")
+sub_rld_m481 <- rld[,sub_m481$ID]
+#First lets plot all of them. Then subset by system.
+condition_pca_all_m481 <- plotPCA(sub_rld_m481, intgroup="Type")
+ggplot(condition_pca_all_m481[["data"]], aes(x = PC1, y = PC2, color = Type)) +
+  geom_point(size=5) +
+  scale_color_manual(values = c("Primary" = "seagreen", "Macro" = "magenta1", "Micro" = "dodgerblue")) + labs(y=condition_pca_all_m481[["labels"]]$y , x = condition_pca_all_m481[["labels"]]$x) + ggtitle("Data from patient M481")
+
+```
+
+
+
+## {-}
+
+Run DE separately since batch is too big to combine data from the different patients.
+
+## DE analysis for M481.
+```{r}
+#sample ID in M481.
+m481_metadata <- metadata %>% filter(Patient=="M481")
+raw_mat_m481 <- raw_mat[,m481_metadata$ID]
+m481_dds <- DESeqDataSetFromMatrix(countData = raw_mat_m481,
+                              colData = m481_metadata,
+                              design = ~ Type)
+m481_dds <- estimateSizeFactors(m481_dds)
+keep <- rowSums(counts(m481_dds) >= 10) >= 2
+m481_dds <- m481_dds[keep,]
+m481_dds <- DESeq(m481_dds)
+normalized_counts <- counts(m481_dds,normalized=TRUE)
+
+vsd_M481 <- DESeq2::vst(m481_dds, blind = TRUE)
+log_normCounts_M481 = assay(vsd_M481)
+write.table(log_normCounts_M481, "M481_Log_transformed.csv", sep = ",", quote = F)
+
+```
+
+
+alpha: the significance cutoff used for optimizing the independent filtering (by default 0.1). If the adjusted p-value cutoff (FDR) will be a value other than 0.1, ‘alpha’ should be set to that value.
+So, in results(), alpha is used to change how the independent filtering is performed, which changes the adjusted p-values themselves. In summary(), alpha is just changing the threshold that is used to tally up the DE gene counts.
+
+
+```{r}
+varInt="Type"
+de.all <- list()
+alphaTR = 0.01
+lfcThres = 1.5
+```
+
+
+```{r}
+for (comp in combn(nlevels(colData(m481_dds)[,varInt]), 2, simplify=FALSE)){
+  levelRef <- levels(colData(m481_dds)[,varInt])[comp[1]]
+  levelTest <- levels(colData(m481_dds)[,varInt])[comp[2]]
+  res <- results(m481_dds, contrast=c(varInt, levelTest, levelRef), alpha=alphaTR) %>% as.data.frame()
+  de.all[[paste0(levelTest,"_vs_",levelRef)]] <- res
+  levelRef_samples <- rownames(as.data.frame(colData(m481_dds)))[as.data.frame(colData(m481_dds))[,varInt] %in% levelRef]
+  res$levelRef_ave <- rowMeans( counts(m481_dds,normalized=TRUE)[,levelRef_samples])
+  res <- res %>% dplyr::rename(!!paste0("levelRef_",levelRef):=levelRef_ave)
+  levelTest_samples <- rownames(as.data.frame(colData(m481_dds)))[as.data.frame(colData(m481_dds))[,varInt] %in% levelTest]
+  res$levelTest_ave <- rowMeans( counts(m481_dds,normalized=TRUE)[,levelTest_samples])
+  res <- res %>% dplyr::rename(!!paste0("levelTest_",levelTest):=levelTest_ave)
+  write.csv(res, paste0("DESEQ_results_m481/",levelTest,"_vs_",levelRef, "_DESeq_res.csv"), quote=F)
+}
+```
+
+
+## DE analysis for M405.
+
+```{r}
+#sample ID in M405.
+m405_metadata <- metadata %>% filter(Patient=="M405")
+raw_mat_m405 <- raw_mat[,m405_metadata$ID]
+#Create DESeq object and start working in the different comparisons. 
+m405_dds <- DESeqDataSetFromMatrix(countData = raw_mat_m405,
+                                   colData = m405_metadata,
+                                   design = ~ Type)
+m405_dds <- estimateSizeFactors(m405_dds)
+#lets do collapse replicate after checking PCA from individual samples.
+keep <- rowSums(counts(m405_dds) >= 10) >= 2
+m405_dds <- m405_dds[keep,]
+m405_dds <- DESeq(m405_dds)
+normalized_counts <- counts(m405_dds,normalized=TRUE)
+
+vsd_M405 <- DESeq2::vst(m405_dds, blind = TRUE)
+log_normCounts_M405 = assay(vsd_M405)
+write.table(log_normCounts_M405, "M405_Log_transformed.csv", sep = ",", quote = F)
+
+```
+
+
+```{r}
+for (comp in combn(nlevels(colData(m405_dds)[,varInt]), 2, simplify=FALSE)){
+  levelRef <- levels(colData(m405_dds)[,varInt])[comp[1]]
+  levelTest <- levels(colData(m405_dds)[,varInt])[comp[2]]
+  res <- results(m405_dds, contrast=c(varInt, levelTest, levelRef), alpha=alphaTR) %>% as.data.frame()
+  de.all[[paste0(levelTest,"_vs_",levelRef)]] <- res
+  levelRef_samples <- rownames(as.data.frame(colData(m405_dds)))[as.data.frame(colData(m405_dds))[,varInt] %in% levelRef]
+  res$levelRef_ave <- rowMeans( counts(m405_dds,normalized=TRUE)[,levelRef_samples])
+  res <- res %>% dplyr::rename(!!paste0("levelRef_",levelRef):=levelRef_ave)
+  levelTest_samples <- rownames(as.data.frame(colData(m405_dds)))[as.data.frame(colData(m405_dds))[,varInt] %in% levelTest]
+  res$levelTest_ave <- rowMeans( counts(m405_dds,normalized=TRUE)[,levelTest_samples])
+  res <- res %>% dplyr::rename(!!paste0("levelTest_",levelTest):=levelTest_ave)
+  write.csv(res, paste0("DESEQ_results_m405/",levelTest,"_vs_",levelRef, "_DESeq_res.csv"), quote=F)
+}
+```
+
+
+```{r}
+genes <- str_sub(rownames(raw_mat_m481), 1, 15)
+ensembl <- biomaRt::useEnsembl(biomart = "genes", dataset = "hsapiens_gene_ensembl", mirror="useast")
+
+ensembl <-  biomaRt::useDataset(dataset = "hsapiens_gene_ensembl", mart = ensembl)
+correlation_id_name <- biomaRt::getBM(attributes = c('ensembl_gene_id', 'external_gene_name'),
+                                      filters = 'ensembl_gene_id',
+                                      values = genes, 
+                                      mart = ensembl)
+write.csv(correlation_id_name, "correlation_id_name.csv", quote = F)
+```
+
+```{r}
+correlation_id_name <- read.csv("correlation_id_name.csv")
+```
+
+```{r}
+cal_z_score <- function(x){
+    (x - mean(x)) / sd(x)
+  }
+```
+
+## Expression values for Selenoproteins {.tabset}
+```{r}
+#Plot selenoproteins values across the different tumor types.
+selenoproteins <- c( "GPX1", "GPX2", "GPX3", "GPX4", "GPX6", "DIO1", "DIO2", "DIO3", "MSRB1","SELENOP", "SELENOH", "SELENOI", "SELENOK", "SELENOM", "SELENON", "SELENOO",  "SELENOS", "SELENOT", "SELENOV", "SELENOW", "SELENOF", "SEPHS2", "TXNRD1", "TXNRD2","TXNRD3")
+```
+
+### Expression for sample M481. 
+
+```{r}
+genes <- str_sub(rownames(log_normCounts_M481), 1, 15)
+subset_genes <- correlation_id_name[correlation_id_name$ensembl_gene_id %in% genes, ]
+subset_genes <- subset_genes[match(genes, subset_genes$ensembl_gene_id),]
+log_normCounts_M481_mod <- log_normCounts_M481
+```
+
+
+```{r}
+rownames(log_normCounts_M481_mod) <- subset_genes$external_gene_name
+identified_selenos <- selenoproteins[selenoproteins %in% rownames(log_normCounts_M481_mod)]
+subset_mat <- log_normCounts_M481_mod[identified_selenos,]
+
+
+m481_metadata <- m481_metadata[order(m481_metadata$Type),]
+subset_mat <- subset_mat[,m481_metadata$ID] 
+
+write.csv(subset_mat, "selenoprotein_PDX_m481.csv", quote = F)
+
+
+data_subset_norm <- t(apply(subset_mat, 1, cal_z_score))
+
+write.csv(data_subset_norm, "zscore_selenoprotein_PDX_m481.csv")
+
+paletteLength <- 50
+myColor <- colorRampPalette(c("blue", "white", "yellow"))(paletteLength)
+# length(breaks) == length(paletteLength) + 1
+# use floor and ceiling to deal with even/odd length pallettelengths
+myBreaks <- c(seq(min(data_subset_norm), 0, length.out=ceiling(paletteLength/2) + 1), 
+                seq(max(data_subset_norm)/paletteLength, max(data_subset_norm), length.out=floor(paletteLength/2)))
+
+
+pheatmap(data_subset_norm, scale="row", show_rownames = T, show_colnames = T, annotation_col = m481_metadata, cluster_cols = F, cluster_rows = T, color=myColor, breaks=myBreaks)
+```
+
+## Expression for sample M405.
+```{r}
+genes <- str_sub(rownames(log_normCounts_M405), 1, 15)
+subset_genes <- correlation_id_name[correlation_id_name$ensembl_gene_id %in% genes, ]
+subset_genes <- subset_genes[match(genes, subset_genes$ensembl_gene_id),]
+
+log_normCounts_M405_mod <- log_normCounts_M405
+rownames(log_normCounts_M405_mod) <- subset_genes$external_gene_name
+identified_selenos <- selenoproteins[selenoproteins %in% rownames(log_normCounts_M405_mod)]
+subset_mat <- log_normCounts_M405_mod[identified_selenos,]
+
+
+m405_metadata <- m405_metadata[order(m405_metadata$Type),]
+subset_mat <- subset_mat[,m405_metadata$ID] 
+
+write.csv(subset_mat, "selenoprotein_PDX_m405.csv", quote = F)
+
+
+
+
+data_subset_norm <- t(apply(subset_mat, 1, cal_z_score))
+
+write.csv(data_subset_norm, "zscore_selenoprotein_PDX_m405.csv")
+
+myBreaks <- c(seq(min(data_subset_norm), 0, length.out=ceiling(paletteLength/2) + 1), 
+              seq(max(data_subset_norm)/paletteLength, max(data_subset_norm), length.out=floor(paletteLength/2)))
+
+pheatmap(data_subset_norm, scale="row", show_rownames = T, show_colnames = T, annotation_col = m405_metadata, cluster_cols = F, cluster_rows = T, color=myColor, breaks=myBreaks)
+```
+
+
+## {-}
+
+
+# Session Info
+```{r session, message=FALSE, warning=FALSE, cache=TRUE,comment="",echo=FALSE, fig.width=10, fig.height=5.5, context="data"}
+sessionInfo()
+```
