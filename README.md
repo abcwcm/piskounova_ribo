@@ -51,12 +51,12 @@ For Xenograft data, in addition to the steps described above, mouse reads are re
 Using ribosome profiled bam files outputed from mapping to the transcriptome in `Step 5`, samples' in-frame psite coverages were calculated using `riboWaltz` package. This in-frame *p-site* coverages were used then to **i**) calculate stalling based on downstream cumulative distribution function (CDF) and **ii**) to calculate psite codon usage. 
 
 
-- **Step 7.1: In-frame *p-site* identification and quantification**:
+- **Step 6.1: In-frame *p-site* identification and quantification**:
 
 For in-frame *p-site* coverage quantification, reads longer than 25 pb and shorter than 45 pb are kept and P-offsites are calculated for each read length using *p-site* function with default arguments. Based on those P-offsite, CDS in-frame *p-site* coverages are quantified for each gene and saved for TE analysis. Once, *p-site* position of each read is identified, only in-frame *p-sites* are kept for further stalliing CDF, heatmaps and readthrough analyses. *P-site* coverages for each Selenoprotein can be found [here](https://github.com/abcwcm/piskounova_ribo/tree/main/selenoproteins_psite_counts). Codon usage of *p-site* is calculated using `codon_usage_psite` function from `riboWaltz` (Extended Figure 3A). ([Cell_line_psite_identification.Rmd](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/downstream_analysis/Script1_cell_lines_inframe_psite_idenitification.Rmd)).
 
 
 
-- **Step 7.2: Stalling CDF plots**:
+- **Step 6.2: Stalling CDF plots**:
 
 Once the *p-site* coverage through each selenoprotein and nucleotide position is identified, mean values and cumulative fractions across conditions are calculated through the entire gene body. ([Cell_line_CDF.Rmd](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/downstream_analysis/Script2_cell_lines_CDF_plots.Rmd))
