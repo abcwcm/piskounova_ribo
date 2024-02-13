@@ -60,3 +60,9 @@ For in-frame *p-site* coverage quantification, reads longer than 25 pb and short
 - **Step 6.2: Stalling CDF plots**:
 
 Once the *p-site* coverage through each selenoprotein and nucleotide position is identified, mean values and cumulative fractions across conditions are calculated through the entire gene body. ([Cell_line_CDF.Rmd](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/downstream_analysis/Script2_cell_lines_CDF_plots.Rmd))
+
+
+- **Step 6.3: UGA recodring efficiency**:
+
+UGA recording efficiency was determined based on the obtained CDS *p-site* coverage. Ratio of 3’ and 5’ coverages are calculated based on fixed -X and +X bases relative to the Sec codon. Since we were using only CDS _p-site values, and for some of the selenoproteins the distance between Sec and stop codon is short, these fixed bins are different between selenoproteins. 
+([Cell_line_footprint.Rmd](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/downstream_analysis/Script3_cell_lines_readthrough_footprints.Rmd))
