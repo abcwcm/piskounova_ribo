@@ -40,7 +40,7 @@ For Xenograft data, in addition to the steps described above, mouse reads are re
 
 - **Step 3**. Before non-coding RNA removal `bbsplit.sh` from `BBMap` v38.90 is used with `ambiguous2==”toss”` using gencode **GRCh38 human** and **GRCm39 mouse** references keeping only reads that mapped unambiguously to human reference. 
 
-- **Step 7**. Differential Expression Analysis is run based on the CDS gene counts obtained from bulk RNA-seq for the different conditions and using **DESeq2** approach. [DE_DESeq2.Rmd](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/downstream_analysis/Xenograft/Script5_PDX_Translation_Efficiency.Rmd))
+- **Step 7**. Differential Expression Analysis is run based on the CDS gene counts obtained from bulk RNA-seq for the different conditions and using **DESeq2** approach. [DE_DESeq2.Rmd](https://github.com/abcwcm/piskounova_ribo/blob/main/analysis_scripts/downstream_analysis/DE_DESeq2.Rmd))
 
 
 
