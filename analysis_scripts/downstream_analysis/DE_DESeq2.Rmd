@@ -58,8 +58,8 @@ as_tibble(metadata)
 
 ```{r}
 #Load counts obtain by FeatureCounts.
-feature_1 <- read.csv("/SSD/maa7095/RIBOseq/PDX_RNA_analysis_2024/DE_PDX_RNA/CDS_RNA_counts_not_strand.txt", sep = "\t")
-feature_2 <- read.csv("/SSD/maa7095/RIBOseq/PDX_RNA_analysis_2024/DE_PDX_RNA/subset_CDS_RNA_counts_not_strand_xeno.txt", sep = "\t")
+feature_1 <- read.csv("CDS_RNA_counts_not_strand.txt", sep = "\t")
+feature_2 <- read.csv("subset_CDS_RNA_counts_not_strand_xeno.txt", sep = "\t")
 #subset to only count matrix
 feature_counts <- join(feature_1, feature_2, type="inner")
 rownames(feature_counts) <- feature_counts$Geneid

@@ -28,7 +28,7 @@ library(grid)
 #condition: "no_se" or "se"
 coverage_plot <- function(transcript_name,gene_name,transcript_length,sec_loc, start_pos, stop_pos, condition){
   #load results from Script 1
-cover_dir <- "/SSD/maa7095/RIBOseq/Shino_new_analysis/inframe_downtream_analysis/Cell_lines/p_site_coverage/"
+cover_dir <- "p_site_coverage/"
 
   my_files <- list.files(paste0(cover_dir, "/",transcript_name), pattern=".cov")
   my_files2 <- str_extract(my_files, '.*(?=\\.cov)')
@@ -115,13 +115,13 @@ cover_dir <- "/SSD/maa7095/RIBOseq/Shino_new_analysis/inframe_downtream_analysis
     df$cummulative_frac <- cumsum(df$fraction)
     new_df <- rbind(new_df,df)
   }
-  write.csv(new_df,paste0("/SSD/maa7095/RIBOseq/Shino_new_analysis/inframe_downtream_analysis/Cell_lines/p_site_coverage/CDF_plots/", condition,   "_by_groups/", gene_name,"_coverage_df.csv"), quote=F, row.names = F)
+  write.csv(new_df,paste0("CDF_plots/", condition,   "_by_groups/", gene_name,"_coverage_df.csv"), quote=F, row.names = F)
   
   new_df <- new_df %>%
     mutate(counts = ifelse(str_detect(Condition, "ko1"), -1 * counts, counts))
   
   
-  pdf(file = paste0("/SSD/maa7095/RIBOseq/Shino_new_analysis/inframe_downtream_analysis/Cell_lines/p_site_coverage/CDF_plots/", condition, "_by_groups/",gene_name, "_coverage_clean_counts.pdf"),   # The directory you want to save the file in
+  pdf(file = paste0("CDF_plots/", condition, "_by_groups/",gene_name, "_coverage_clean_counts.pdf"),   # The directory you want to save the file in
       width = 10,
       height = 12) # 
   
@@ -185,7 +185,7 @@ cover_dir <- "/SSD/maa7095/RIBOseq/Shino_new_analysis/inframe_downtream_analysis
   print(coverage_plot1)
   dev.off()
   
-  pdf(file = paste0("/SSD/maa7095/RIBOseq/Shino_new_analysis/inframe_downtream_analysis/Cell_lines/p_site_coverage/CDF_plots/", condition, "_by_groups/",gene_name, "_coverage.pdf"),   # The directory you want to save the file in
+  pdf(file = paste0("CDF_plots/", condition, "_by_groups/",gene_name, "_coverage.pdf"),   # The directory you want to save the file in
       width = 10,
       height = 12) 
   coverage_plot <- ggplot() + 

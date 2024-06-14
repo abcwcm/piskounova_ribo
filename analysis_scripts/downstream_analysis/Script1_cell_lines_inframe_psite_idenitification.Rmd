@@ -22,13 +22,13 @@ knitr::opts_knit$set(progress=TRUE,verbose=TRUE)
 
 ```{r , echo=F, message=F, warning=F}
 #Load mapped bam files for each sample, as well as annotation file and trancritpome reference in fasta format.
-annotation_db <- create_annotation(gtfpath = "/local/storage/maa7095/references/human/gencode_primary/MANE_ref/MANE.GRCh38.v1.2.ensembl_genomic.gtf")
+annotation_db <- create_annotation(gtfpath = "MANE.GRCh38.v1.2.ensembl_genomic.gtf")
 ```
 
 
 ```{r , echo=F, message=F, warning=F}
 #Creates table with start codon, end codon and CDS positions for each read from bam file.
-reads_list <- bamtolist(bamfolder = "/SSD/maa7095/RIBOseq/Shino_new_analysis/Cell_lines/trimmed_out/output_non_coding/output_GRCh38/Transcriptome_bam/RIBO_bam", annotation = annotation_db)
+reads_list <- bamtolist(bamfolder = "RIBO_bam", annotation = annotation_db)
 ```
 
 
@@ -47,7 +47,7 @@ psite_offset <- psite(filtered_list, flanking = 6, extremity = "auto", plot = F,
 ```
 
 ```{r, echo=F, message=F, warning=F}
-reads_psite_list <- psite_info(filtered_list, psite_offset, fasta_genome = T,refseq_sep = " ", gtfpath ="/local/storage/maa7095/references/human/gencode_primary/MANE_ref/MANE.GRCh38.v1.2.ensembl_genomic.gtf" ,fastapath = "/local/storage/maa7095/references/human/gencode_primary/MANE_ref/GRCh38.primary_assembly.genome.fa",site = c("psite","asite","esite"))
+reads_psite_list <- psite_info(filtered_list, psite_offset, fasta_genome = T,refseq_sep = " ", gtfpath ="MANE.GRCh38.v1.2.ensembl_genomic.gtf" ,fastapath = "GRCh38.primary_assembly.genome.fa",site = c("psite","asite","esite"))
 ```
 
 
@@ -61,7 +61,7 @@ selenoprot <- c("ENST00000419783.3","ENST00000389614.6","ENST00000388825.9","ENS
 ```{r}
 # Calculate inframe psite coverage for each selenoprotein and save it in dataframe format for following analysis.
 for (i in selenoprot){
-  out_dir <- paste0("/SSD/maa7095/RIBOseq/Shino_new_analysis/inframe_downtream_analysis/Cell_lines/p_site_coverage/",i)
+  out_dir <- paste0("p_site_coverage/",i)
   if (isFALSE(dir.exists(out_dir))){
   dir.create(out_dir)
   }
@@ -84,13 +84,13 @@ for (i in selenoprot){
 ```{r}
 #Create count table based on inframe psite CDS only for Translation Efficiency (TE) analysis.
 CDS_RIBO_raw_counts <- cds_coverage(reads_psite_list, annotation_db, in_frame = T)
-write.csv(CDS_RIBO_raw_counts, "/SSD/maa7095/RIBOseq/Shino_new_analysis/inframe_downtream_analysis/Cell_lines/TE_analysis/CDS_RIBO_raw_counts.csv", row.names = F)
+write.csv(CDS_RIBO_raw_counts, "CDS_RIBO_raw_counts.csv", row.names = F)
 ```
 
 
 ```{r}
 # Plot in-frame psite location through regions.
-output_folder <-"/SSD/maa7095/RIBOseq/Shino_new_analysis/inframe_downtream_analysis/Cell_lines/Codon_usage/in_frame_psite_regions/" 
+output_folder <-"in_frame_psite_regions/" 
 for( i in names(reads_psite_list)){
 
 pdf(file = paste0(output_folder,
@@ -117,7 +117,7 @@ frame_regions <- frame_psite(
 ```{r, echo=F, message=F, warning=F}
 codon_list <- unique(reads_psite_list[[1]]$p_site_codon)
 scatter_data_frame_p_transcripts <-data.frame(codon=codon_list)
-output_folder <-"/SSD/maa7095/RIBOseq/Shino_new_analysis/inframe_downtream_analysis/Cell_lines/Codon_usage/All_transcripts/psite/" 
+output_folder <-"All_transcripts/psite/" 
 for( i in names(reads_psite_list)){
 
 pdf(file = paste0(output_folder,
@@ -130,11 +130,11 @@ pdf(file = paste0(output_folder,
    annotation_db,
    i,
    site = "psite",
-   fastapath = "/local/storage/maa7095/references/human/gencode_primary/MANE_ref/GRCh38.primary_assembly.genome.fa",
+   fastapath = "GRCh38.primary_assembly.genome.fa",
    fasta_genome = T,
    refseq_sep = " ",
    bsgenome = NULL,
-   gtfpath = "/local/storage/maa7095/references/human/gencode_primary/MANE_ref/MANE.GRCh38.v1.2.ensembl_genomic.gtf",
+   gtfpath = "MANE.GRCh38.v1.2.ensembl_genomic.gtf",
    txdb = NULL,
    dataSource = NA,
    organism = NA,
@@ -165,7 +165,7 @@ df_filtered_ALL <- scatter_data_frame_p_transcripts[rowSums(!is.na(scatter_data_
 ```
 
 ```{r, echo=F, message=F, warning=F}
-write.table(df_filtered_ALL, "/SSD/maa7095/RIBOseq/Shino_new_analysis/inframe_downtream_analysis/Cell_lines/Codon_usage/All_transcripts/ALL_transcript_psite_codon_usage.csv", quote = F, sep = ",")
+write.table(df_filtered_ALL, "All_transcripts/ALL_transcript_psite_codon_usage.csv", quote = F, sep = ",")
 ```
 
 
@@ -199,7 +199,7 @@ sec <- "UGA"
 
 print_plot <- function(dataframe,x_value,y_value, condition_x, condition_y){
   bs <- 30
-  pdf(file = paste0("/SSD/maa7095/RIBOseq/Shino_new_analysis/inframe_downtream_analysis/Cell_lines/Codon_usage/All_transcripts/psite/",
+  pdf(file = paste0("All_transcripts/psite/",
                   condition_x,"_", condition_y,"_SCATTER_psite_codon_usage.pdf"),   
       width = 10,
       height = 12) # The height of the plot in inches
@@ -266,7 +266,7 @@ print_plot(big_df, big_df$WT_SE_MEAN,big_df$KO1_SE_MEAN,"WT Se Suppl", "KO1 Se S
 ```{r, echo=F, message=F, warning=F}
 codon_list <- unique(reads_psite_list[[1]]$p_site_codon)
 scatter_data_frame_p_seleno <-data.frame(codon=codon_list)
-output_folder <-"/SSD/maa7095/RIBOseq/Shino_new_analysis/inframe_downtream_analysis/Cell_lines/Codon_usage/All_selenoproteins/psite/"
+output_folder <-"All_selenoproteins/psite/"
 for( i in names(reads_psite_list)){
 
 pdf(file = paste0(output_folder,
@@ -279,11 +279,11 @@ pdf(file = paste0(output_folder,
    annotation_db,
    i,
    site = "psite",
-   fastapath = "/local/storage/maa7095/references/human/gencode_primary/MANE_ref/GRCh38.primary_assembly.genome.fa",
+   fastapath = "GRCh38.primary_assembly.genome.fa",
    fasta_genome = T,
    refseq_sep = " ",
    bsgenome = NULL,
-   gtfpath = "/local/storage/maa7095/references/human/gencode_primary/MANE_ref/MANE.GRCh38.v1.2.ensembl_genomic.gtf",
+   gtfpath = "MANE.GRCh38.v1.2.ensembl_genomic.gtf",
    txdb = NULL,
    dataSource = NA,
    organism = NA,
@@ -316,7 +316,7 @@ df_filtered <- scatter_data_frame_p_seleno[rowSums(!is.na(scatter_data_frame_p_s
 ```
 
 ```{r, echo=F, message=F, warning=F}
-write.table(df_filtered, "/SSD/maa7095/RIBOseq/Shino_new_analysis/inframe_downtream_analysis/Cell_lines/Codon_usage/All_selenoproteins/Seleno_psite_codon_usage.csv", quote = F, sep = ",")
+write.table(df_filtered, "All_selenoproteins/Seleno_psite_codon_usage.csv", quote = F, sep = ",")
 ```
 
 
@@ -347,7 +347,7 @@ big_seleno_df <- join(WT_SELENOPROTEINS_ALL_df,KO1_SELENOPROTEINS_ALL_df, type="
 ```{r, echo=F, message=F, warning=F}
 print_plot <- function(dataframe,x_value,y_value, condition_x, condition_y){
   bs <- 30
-  pdf(file = paste0("/SSD/maa7095/RIBOseq/Shino_new_analysis/inframe_downtream_analysis/Cell_lines/Codon_usage/All_selenoproteins/psite/",
+  pdf(file = paste0("All_selenoproteins/psite/",
                   condition_x,"_", condition_y, "_SCATTER_psite_codon_usage.pdf"),   
       width = 10,
       height = 12) # The height of the plot in inches

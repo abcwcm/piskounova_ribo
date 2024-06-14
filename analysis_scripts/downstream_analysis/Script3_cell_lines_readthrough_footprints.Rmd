@@ -136,7 +136,7 @@ footprint_df <- function(transcript_name,gene_name,transcript_length,sec_loc, da
 
 ```{r, echo=F, message=F}
 #RIBO location
-cover_dir <- "/SSD/maa7095/RIBOseq/Shino_new_analysis/inframe_downtream_analysis/Cell_lines/p_site_coverage"
+cover_dir <- "p_site_coverage"
 footprint_df_results_list <- list()
 
 footprint_df_results_list[["GPX1"]] <- footprint_df("ENST00000419783.3","GPX1",899,220, "RIBO", 200)
@@ -187,7 +187,7 @@ complete_fottprint_df$Sample_2 <- str_replace_all(complete_fottprint_df$Sample_2
 
 ### Bar plot for RIBO fraction 3'/5' footprints for each gene in NO Selenium Suplementation.
 ```{r, echo=F, message=F}
-write.table(complete_fottprint_df, "/SSD/maa7095/RIBOseq/Shino_new_analysis/inframe_downtream_analysis/Cell_lines/footprints/Footprint_raw_sum_counts.csv", quote = F, sep = ",")
+write.table(complete_fottprint_df, "Footprint_raw_sum_counts.csv", quote = F, sep = ",")
 
 ```
 
@@ -224,7 +224,7 @@ stat.test <- fraction_RIBO_df3 %>%
 stat.test <- stat.test %>%
   add_xy_position(x = "Gene", dodge = 0.8)
 
-write.csv(fraction_RIBO_df3, "/SSD/maa7095/RIBOseq/Shino_new_analysis/inframe_downtream_analysis/Cell_lines/footprints/Footprint_5_3_RIBO_NoSe.csv")
+write.csv(fraction_RIBO_df3, "Footprint_5_3_RIBO_NoSe.csv")
 ```
 
 
@@ -293,7 +293,7 @@ stat.test <- fraction_RIBO_df3 %>%
 stat.test <- stat.test %>%
   add_xy_position(x = "Gene", dodge = 0.8)
 
-write.csv(fraction_RIBO_df3, "/SSD/maa7095/RIBOseq/Shino_new_analysis/inframe_downtream_analysis/Cell_lines/footprints/Footprint_5_3_RIBO_SeSuppl.csv")
+write.csv(fraction_RIBO_df3, "Footprint_5_3_RIBO_SeSuppl.csv")
 
 ```
 
