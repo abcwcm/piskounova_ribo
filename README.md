@@ -7,7 +7,7 @@ Scripts related to the analysis of RIBO-seq and bulkRNA-seq data of FTSJ1 KO cel
 
 ## DATA AVAILABILITY
 
-* Sequencing reads and processed counts (raw and normalized counts) can be downloaded from [**GEO: X**]
+* Sequencing reads and processed counts (raw and normalized counts) can be downloaded from [**GEO: GSE270971** and **GEO: GSE270976**]
 
 ## DATA ANALYSIS
 Schematic description of the data processing workflow. 
